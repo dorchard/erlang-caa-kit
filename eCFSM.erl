@@ -1,5 +1,5 @@
 -module(eCFSM).
--export([main/2]).
+-export([main/3]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -7,13 +7,17 @@
 % without parentheses and then parse the method
 % in that file into a form and return an
 % Abstract form of that method.
-% If the method containes two methods with similar
-% name (overloading) it will return the both for rn.
+% If the method containes three methods with similar
+% 1) filename , 2) method name and 3) number of 
+% parameter that method has to prevent overloading methods
 
-main(Filename, Method) ->
+main(Filename, Method, NumArgu) ->
     case parseToForm(Filename) of
         {error, OpenError} -> OpenError;
-        Form -> getMethod(Form, list_to_atom(Method))
+        Form -> case getMethod(Form, list_to_atom(Method), NumArgu) of
+                    error -> "No such method found";
+                    X -> X
+                end
 end.
     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -31,9 +35,9 @@ end.
 
 % takes a form and return the method part 
 
-getMethod([], _) ->
-    [];
-getMethod([{function, L, Method, A, B}|Xs], Method) ->
-    [{function, L, Method, A, B}|getMethod(Xs, Method)]; 
-getMethod([_|Xs], Method) ->
-    getMethod(Xs, Method).
+getMethod([], _, _) ->
+    error;
+getMethod([{function, L, Method, NumArgu, B}|_], Method, NumArgu) ->
+    {function, L, Method, NumArgu, B}; 
+getMethod([_|Xs], Method, NumArgu) ->
+    getMethod(Xs, Method, NumArgu).
