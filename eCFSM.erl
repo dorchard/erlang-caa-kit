@@ -16,7 +16,7 @@ main(Filename, Method, NumArgu) ->
         {error, OpenError} -> OpenError;
         Form -> case getMethod(Form, list_to_atom(Method), NumArgu) of
                     error -> "No such method found";
-                    X -> X
+                    X -> convert(X)
                 end
 end.
     
@@ -41,3 +41,28 @@ getMethod([{function, L, Method, NumArgu, B}|_], Method, NumArgu) ->
     {function, L, Method, NumArgu, B}; 
 getMethod([_|Xs], Method, NumArgu) ->
     getMethod(Xs, Method, NumArgu).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% this is just a prototype which is only
+% works for example 2.2/ mem(S)
+% c(eCFSM), rp(eCFSM:main("toRead2.erl", "mem", 1)).
+convert({_,_,Name,Arity,[X|_]}) ->
+    clause(X, Name, Arity, 0).
+
+%   clause, Arity
+clause({_,_,_,_,X}, Name, Arity, State) -> 
+    {0, caa(X, Name, Arity, State)}.
+
+caa([{'receive',_,X}|_], Name, Arity, State) -> 
+    receiveM(X, Name, Arity, State).
+
+receiveM([], _, _, _) -> 
+    [];
+receiveM([{_,_,[Rec],_,[{call,_,{_,_,Name}, NumsArgu}]}], Name, Arity, State) when length(NumsArgu) == Arity -> 
+    {State,{rec, Rec}, 0};
+receiveM([{_,_,[Rec],_,Body}|Xs], Name, Arity, State) -> 
+    [{State,{rec, Rec}, State + 1} , receiveM(Xs, Name, Arity, State)] ++ [receiveBody(Body,Name, Arity, State+1)].
+
+receiveBody([{_,_,'!',ID,Data},{call,_,{_,_,Name},NumArgu}|_], Name, Arity, State) when length(NumArgu) == Arity -> 
+    {State, {send, ID, Data}, 0}.

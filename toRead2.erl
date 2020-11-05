@@ -1,6 +1,13 @@
 -module(toRead2).
 -compile(export_all).
 
+%  example 2.2
+mem(S) ->
+    receive
+        {get, P} -> P!S, mem(S);
+        {put, X} -> mem(X)
+end.
+
 server() -> 
     receive
         x -> io:fwrite("Received x ~n");
