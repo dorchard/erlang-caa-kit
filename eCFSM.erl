@@ -16,7 +16,7 @@ main(Filename, Method, NumArgu) ->
         {error, OpenError} -> OpenError;
         Form -> case getMethod(Form, list_to_atom(Method), NumArgu) of
                     error -> "No such method found";
-                    X -> convert(X)
+                    X -> X, convert(X)
                 end
 end.
     
@@ -44,25 +44,54 @@ getMethod([_|Xs], Method, NumArgu) ->
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% this is just a prototype which is only
-% works for example 2.2/ mem(S)
-% c(eCFSM), rp(eCFSM:main("toRead2.erl", "mem", 1)).
+% this is just a prototype which works for every example 
+% except when there is a call to different method and
+% a method with multiole pattern-matching
+% example are provided in example.erl and toRead2.erl   
+% c(eCFSM), rp(eCFSM:main("example.erl", "_", _)).
 convert({_,_,Name,Arity,[X|_]}) ->
     clause(X, Name, Arity, 0).
 
+%%%%%%%%%%%%%%%%%%%%%%%%
 %   clause, Arity
 clause({_,_,_,_,X}, Name, Arity, State) -> 
-    {0, caa(X, Name, Arity, State)}.
+    {0, caa(X, Name, Arity, State, [])}.
 
-caa([{'receive',_,X}|_], Name, Arity, State) -> 
-    receiveM(X, Name, Arity, State).
+%%%%%%%%%%%%%%%%%%%%%%%%%
+% caa works on sequential part of the code 
+caa([],_,_,_, Delta) ->
+    lists:reverse(Delta);
+% when there was no send and receive before
+% and now it encounters recursion
+caa([{call,_,{_,_,Name}, NumArgu}|_], Name, Arity, _,  []) -> 
+    case length(NumArgu) == Arity of
+        true -> [];
+        _    -> [] % overloading, to do
+end;
+% when there was send and receive before
+% and now recursion
+caa([{call,_,{_,_,Name}, NumArgu}|_], Name, Arity, State,  [Y|Ys]) -> 
+    case length(NumArgu) == Arity of
+        true -> {_, Communication, _ } = Y, 
+                caa([],Name, Arity, State, [{State - 1, Communication, 0}|Ys]);
+        _    -> [] % overloading, to do
+end;
+% call to another method
+% caa([{call,_,{_,_,OMethod}, _}|_], _, _, _,  [Y|Ys]) -> 
+%     [];
+% when there is a send in the clause
+caa([{_,_,'!',P_ID,Data}|Xs], Name, Arity, State, Delta) -> 
+    caa(Xs, Name, Arity, State+1, [{State,{send, P_ID, Data}, State+1}|Delta]);
+% when there is a receive in the clause
+caa([{'receive',_,X}|_], Name, Arity, State, Delta) -> 
+    caa([], Name, Arity, State, receiveM(X, Name, Arity, State, []) ++ Delta);
+% when none of the above
+caa([_|Xs], Name, Arity, State, Delta) -> 
+    caa(Xs, Name, Arity, State, Delta).
 
-receiveM([], _, _, _) -> 
-    [];
-receiveM([{_,_,[Rec],_,[{call,_,{_,_,Name}, NumsArgu}]}], Name, Arity, State) when length(NumsArgu) == Arity -> 
-    {State,{rec, Rec}, 0};
-receiveM([{_,_,[Rec],_,Body}|Xs], Name, Arity, State) -> 
-    [{State,{rec, Rec}, State + 1} , receiveM(Xs, Name, Arity, State)] ++ [receiveBody(Body,Name, Arity, State+1)].
-
-receiveBody([{_,_,'!',ID,Data},{call,_,{_,_,Name},NumArgu}|_], Name, Arity, State) when length(NumArgu) == Arity -> 
-    {State, {send, ID, Data}, 0}.
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+% receiveM works on the receive block
+receiveM([], _, _, _, Recv_Block) -> 
+    lists:reverse(Recv_Block);
+receiveM([{_,_,[Recv],_,Body}|Xs], Name, Arity, State, Recv_Block) -> 
+    receiveM(Xs, Name, Arity, State, caa(Body, Name, Arity, State+1, [{State, {recv, Recv}, State + 1}]) ++ Recv_Block).
