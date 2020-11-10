@@ -39,6 +39,14 @@ e2(S,Z) ->
         {put, X} -> e2(X,Z)
 end.
 
+%  when there is a recursive call first
+e3(S,Z) ->
+    e3(S, Z),
+    receive
+        {get, P} -> P!S, e3(S,Z);
+        {put, X} -> e3(X,Z)
+end.
+
 % when there are another receive
 % inside a receive
 mul_Recv(S,Z) ->
