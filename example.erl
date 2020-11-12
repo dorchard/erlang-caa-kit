@@ -8,8 +8,11 @@ e(S) ->
         {put, X} -> e(X)
 end.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % when there are few sends 
 % before receive 
+ 
 e(S,Z) ->
     Z!S,
     Z!S+1,
@@ -17,6 +20,8 @@ e(S,Z) ->
         {get, P} -> P!S, e(S,Z);
         {put, X} -> e(X,Z)
 end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %  when there are other stuff inbetween send and receive 
 e1(S,Z) ->
@@ -29,6 +34,8 @@ e1(S,Z) ->
         {put, X} -> D = Y+1, e1(D,Z)
 end.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 %  when there is a recursive call before receive 
 e2(S,Z) ->
     Z!S,
@@ -39,6 +46,8 @@ e2(S,Z) ->
         {put, X} -> e2(X,Z)
 end.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 %  when there is a recursive call first
 e3(S,Z) ->
     e3(S, Z),
@@ -47,16 +56,109 @@ e3(S,Z) ->
         {put, X} -> e3(X,Z)
 end.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % when there are another receive
 % inside a receive
-mul_Recv(S,Z) ->
+e4(S,Z) ->
     Z!S,
     Z!S+1,
-%    mem(S, Z),
     receive
         {get, P} ->
             receive
-                X -> P!Z, mul_Recv(X,Z)
+                X -> P!Z, e4(X,Z)
         end;
-        {put, X} -> mul_Recv(X,Z)
+        {put, X} -> e4(X,Z)
 end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% when there is stuff after 
+%  a receive
+e5(S,Z) ->
+    Z!S,
+    Z!S+1,
+    receive
+        {get, P} -> P!S;
+        {put, X} -> e5(X,Z)
+    end,
+    Z!S+2,
+    receive
+        {get, D} -> D!S;
+        W -> W!S    
+    end,
+    Z!S+6,
+    e5(S,Z).
+
+% e5(S,Z) ->
+%         Z!S,
+%     Z!S+1,
+%     receive
+%         {get, P} -> P!S,
+%                     Z!S+2,
+%                     receive
+%                         {get, D} -> D!S,
+%                                     Z!S+6,
+%                                     e5(S,Z);
+%                             W    -> W!S,
+%                                     Z!S+6,
+%                                     e5(S,Z)   
+%                     end;
+%         {put, X} -> e5(X,Z),
+%                     Z!S+2,
+%                     receive
+%                         {get, D} -> D!S,
+%                                     Z!S+6,
+%                                     e5(S,Z);
+%                             W    -> W!S,
+%                                     Z!S+6,
+%                                     e5(S,Z)   
+%                     end
+% end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% when there is just stuff send
+e6(S,Z) ->
+    Z!S,
+    Z!S+1,
+    Z!S+6,
+    e6(S,Z).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% when there are another receive
+% inside a receive
+e7(S,Z) ->
+    Z!S,
+    Z!S+1,
+    receive
+        {get, P} -> P!S,
+                    receive
+                        x -> P!y;
+                        get_id -> P!Z
+                    end,
+                    Z!S+1,
+                    e7(S,Z);
+
+        {put, X} -> e7(X,Z)
+end.
+
+% e7(S,Z) ->
+%     Z!S,
+%     Z!S+1,
+%     receive
+%         {get, P} -> P!S,
+%                     receive
+%                         x -> P!y,
+%                             Z!S+1,
+%                             e7(S,Z);
+%                         get_id -> P!Z,
+%                                 Z!S+1,
+%                                 e7(S,Z)
+%                     end;
+
+%         {put, X} -> e7(X,Z)
+% end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
