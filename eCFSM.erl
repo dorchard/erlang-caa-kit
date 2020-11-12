@@ -44,20 +44,24 @@ getMethod([_|Xs], Method, NumArgu) ->
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% this is just a prototype which works for every example 
+% this is just a prototype of caa which works for every example 
 % except when there is a call to different method and
-% a method with multiole pattern-matching
+% a method with multiple pattern-matching
 % example are provided in example.erl and toRead2.erl   
 % c(eCFSM), rp(eCFSM:main("example.erl", "_", _)).
+
+% {function, ANNO, Method_Name, Arity, [X|_] (method clauses)}
 convert({_,_,Name,Arity,[X|_]}) ->
     clause(X, Name, Arity, 0).
 
 %%%%%%%%%%%%%%%%%%%%%%%%
-%   clause, Arity
+
+%   {clause, ANNO, Arity, Arrow, X (body of the clause)}, Method_Name, Arity, CAA_State
 clause({_,_,_,_,X}, Name, Arity, State) -> 
-    {0, caa(X, Name, Arity, State, [])}.
+    {State, caa(for_Recv(lists:reverse(X), []), Name, Arity, State, [])}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
+
 % caa works on sequential part of the code 
 caa([],_,_,_, Delta) ->
     lists:reverse(Delta);
@@ -90,8 +94,31 @@ caa([_|Xs], Name, Arity, State, Delta) ->
     caa(Xs, Name, Arity, State, Delta).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
+
 % receiveM works on the receive block
 receiveM([], _, _, _, Recv_Block) -> 
     lists:reverse(Recv_Block);
+% {[clause, ANNO, [Recv (case clause)],
+% Arrow, Body (case clause expression)|Xs], Name, Arity,
+% State (current State), Recv_Block (The whole receive block)}
 receiveM([{_,_,[Recv],_,Body}|Xs], Name, Arity, State, Recv_Block) -> 
-    receiveM(Xs, Name, Arity, State, caa(Body, Name, Arity, State+1, [{State, {recv, Recv}, State + 1}]) ++ Recv_Block).
+    receiveM(Xs, Name, Arity, State, Recv_Block ++ caa(Body, Name, Arity, State+1, [{State, {recv, Recv}, State + 1}])).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% put all the stuff after the receive block
+% in the receive case clause body
+for_Recv([],List) -> 
+    List;
+% when it find the receive block
+for_Recv([{'receive', ANNO, Body}|Xs], List) -> 
+    for_Recv(Xs, [{'receive', ANNO, recv_Body(Body, List, [])}]);
+for_Recv([X|Xs], List) -> 
+    for_Recv(Xs, [X|List]).
+
+% add all the stuff which was after the receive block to
+% this receive block clauses body 
+recv_Body([], _, Main) ->
+    lists:reverse(Main);
+recv_Body([{clause, ANNO, Recv, Arrow, Body}|Xs], List, Main) ->
+    recv_Body(Xs, List, [{clause, ANNO, Recv, Arrow, for_Recv(lists:reverse(Body), []) ++ List}|Main]).
