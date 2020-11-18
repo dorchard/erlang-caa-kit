@@ -3,20 +3,15 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% Takes the filename (with extension) and method name
-% without parentheses and then parse the method
-% in that file into a form and return an
-% Abstract form of that method.
-% If the method containes three methods with similar
-% 1) filename , 2) method name and 3) number of 
-% parameter that method has to prevent overloading methods
+% Takes the filename (with extension), method name and
+% its arity. Returns its CAA form.
 
 main(Filename, Method, NumArgu) ->
     case parseToForm(Filename) of
         {error, OpenError} -> OpenError;
         Form -> case getMethod(Form, list_to_atom(Method), NumArgu) of
                     error -> "No such method found";
-                    X -> X, convert(X)
+                    {function, _, Method_Name, Arity, X} -> convert(X, Method_Name, Arity, length(X) > 1, false, 0)
                 end
 end.
     
@@ -45,20 +40,28 @@ getMethod([_|Xs], Method, NumArgu) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % this is just a prototype of caa which works for every example 
-% except when there is a call to different method and
-% a method with multiple pattern-matching
-% example are provided in example.erl and toRead2.erl   
-% c(eCFSM), rp(eCFSM:main("example.erl", "_", _)).
+% except when there is a call to different method
 
-% {function, ANNO, Method_Name, Arity, [X|_] (method clauses)}
-convert({_,_,Name,Arity,[X|_]}) ->
-    clause(X, Name, Arity, 0).
+% example are provided in example.erl and toRead2.erl   
+% c(eCFSM), rp(eCFSM:main("example.erl", "Methodname", Arity(int))).
+
+% ({clause, ANNO, Arity, Arrow, X (body of the clause)},
+% Method_Name, Arity, There are many clauses of this method,
+% We are at N clause of this method, where N > 1, CAA_State)
+convert([], _, _, _, _, _) ->
+    [];
+convert([{_,_,_,_,X}], Method_Name, Arity, false, false, State) ->
+    {State, clause(X, Method_Name, Arity, State)};
+convert([{_,_,_,_,X}|Xs], Method_Name, Arity, true, false, State) ->
+    {State, [{State, undefined, State+1}] ++ clause(X, Method_Name, Arity, State+1) ++ convert(Xs, Method_Name, Arity, true, true, State)};
+convert([{_,_,_,_,X}|Xs], Method_Name, Arity, true, true, State) ->
+     [{State, undefined, State+1}] ++ clause(X, Method_Name, Arity, State+1) ++ convert(Xs, Method_Name, Arity, true, true, State).
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 
-%   {clause, ANNO, Arity, Arrow, X (body of the clause)}, Method_Name, Arity, CAA_State
-clause({_,_,_,_,X}, Name, Arity, State) -> 
-    {State, caa(for_Recv(lists:reverse(X), []), Name, Arity, State, [])}.
+% Expressions, Method_Name, Arity, CAA_State
+clause(X, Method_Name, Arity, State) -> 
+    caa(for_Recv(lists:reverse(X), []), Method_Name, Arity, State, []).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -98,9 +101,9 @@ caa([_|Xs], Name, Arity, State, Delta) ->
 % receiveM works on the receive block
 receiveM([], _, _, _, Recv_Block) -> 
     lists:reverse(Recv_Block);
-% {[clause, ANNO, [Recv (case clause)],
+% ({[clause, ANNO, [Recv (case clause)],
 % Arrow, Body (case clause expression)|Xs], Name, Arity,
-% State (current State), Recv_Block (The whole receive block)}
+% State (current State), Recv_Block (The whole receive block)})
 receiveM([{_,_,[Recv],_,Body}|Xs], Name, Arity, State, Recv_Block) -> 
     receiveM(Xs, Name, Arity, State, Recv_Block ++ caa(Body, Name, Arity, State+1, [{State, {recv, Recv}, State + 1}])).
 
@@ -122,3 +125,5 @@ recv_Body([], _, Main) ->
     lists:reverse(Main);
 recv_Body([{clause, ANNO, Recv, Arrow, Body}|Xs], List, Main) ->
     recv_Body(Xs, List, [{clause, ANNO, Recv, Arrow, for_Recv(lists:reverse(Body), []) ++ List}|Main]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
