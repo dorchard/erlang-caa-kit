@@ -162,3 +162,15 @@ end.
 % end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% when a methods has many clauses
+
+e8(recv,S,Z) ->
+    receive
+        {get, P} -> P!S, e8(send, S,Z);
+        {put, X} -> e8(recv, X,Z)
+end;
+e8(send, S,Z) ->
+    Z!S;
+e8(X, S,Z) ->
+    X ! S, Z! S.
