@@ -5,16 +5,17 @@
 
 % Takes the filename (with extension), method name and
 % its arity. Returns its CAA form.
+% example are provided in example.erl and toRead2.erl   
+% c(eCFSM), rp(eCFSM:main("example.erl", "Methodname", Arity(int))).
 
 main(Filename, Method, NumArgu) ->
     case parseToForm(Filename) of
         {error, OpenError} -> OpenError;
         Form -> case method_Form:getMethod(Form, list_to_atom(Method), NumArgu, Form, [Method ++ "->" ++ integer_to_list(NumArgu)]) of
                     error -> "No such method found";
-                    {function, _, Method_Name, Arity, X, Method_Term} -> 
-                        convert(X, Method_Name, Arity, length(X) > 1,
-                                false, 0, #{Method_Term => 0},
-                                0, Form)
+                    Method_Form -> 
+                        {CAA, _, _} = caa(Method_Form, [0]),
+                        CAA
                 end
 end.
     
@@ -29,66 +30,94 @@ parseToForm(Filename) ->
     {error, OpenError} -> {error, OpenError}
 end.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% caa takes the form a method 
+% and a list containig all
+% the last transition states.
+% And returns its CAA form
+% and all the last transition states
+% (the clause function)
+
+caa({_, _, Method_Name, Arity, Clauses, Method_Term}, Last_Transition_States) ->
+    clause(Clauses, Method_Name, Arity, length(Clauses) > 1,
+        false, #{Method_Term => Last_Transition_States},
+        0, [], [], Last_Transition_States).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% this is just a prototype of caa which works for every example 
-% except when there is a call to different method
 
-% example are provided in example.erl and toRead2.erl   
-% c(eCFSM), rp(eCFSM:main("example.erl", "Methodname", Arity(int))).
-
-% ({clause, ANNO, Arity, Arrow, X (body of the clause)},
+% the clause methods takes the list containing the clause of 
+%  the method ({clause, ANNO, Arity, Arrow, Clause_Body (body of the clause)},
 % Method_Name, Arity, does this method have many clauses,
 % we are at Nth clause of this method where N > 1,
-% Maximum state, map containing Method_Term and it's states)
-convert([], _, _, _, _, _, _, _, _) ->
-    [];
+%  map containing Method_Term and it's states,
+            % last clause highest transition state,   %%%%%%%% Note might not need this parameter, coz the one after this be use by lists:max() 
+% last transition states of all the clauses,
+%  CAA,
+% last transition states of the parent)
+clause([], _, _, _, _, _, Max_StateMethod, Clauses_Last_Transition_States, CAA, Parent_Last_Transition_States) ->
+    {{lists:max(Parent_Last_Transition_States), CAA}, Clauses_Last_Transition_States, Max_StateMethod};
 % when there is only one clause in the method
-convert([{_,_,_,_,X}], Method_Name, Arity, false, false, CAA_State, MethodState_Map, _, File_Form) ->
-    {Delta, _, _, _} = caa(X, Method_Name, Arity, CAA_State, MethodState_Map, [], [CAA_State], File_Form),
-    {CAA_State, Delta};
+clause([{_,_,_,_,Clause_Body}], Method_Name, Arity, false, false, MethodState_Map, _, _, _, Parent_Last_Transition_States) ->
+    MAX_CAA_State = lists:max(Parent_Last_Transition_States),
+    {Delta, Clause_Last_Transition_States, NEW_Max_State, _} = 
+        sequential(Clause_Body, Method_Name, Arity, MAX_CAA_State, MethodState_Map, [], Parent_Last_Transition_States),
+    {{MAX_CAA_State, Delta}, Clause_Last_Transition_States, NEW_Max_State};
 % when there are many clauses in the method and
-% this is the first one
-convert([{_,_,_,_,X}|Xs], Method_Name, Arity, true, false, CAA_State, MethodState_Map, _, File_Form) ->
-    {Delta, _, Max_StateClause, _} = caa(X, Method_Name, Arity, CAA_State+1, MethodState_Map, [], [CAA_State+1], File_Form),
+% this is the first clause
+clause([{_,_,_,_,Clause_Body}|Xs], Method_Name, Arity, true, false, MethodState_Map, _, _, _, Parent_Last_Transition_States) ->
+    MAX_CAA_State = lists:max(Parent_Last_Transition_States),
+    {Delta, ClauseLast_Transition_States, Max_StateClause, _} = 
+        sequential(Clause_Body, Method_Name, Arity, MAX_CAA_State+1, MethodState_Map, [], [MAX_CAA_State+1]),
     case Delta == [] of
         false ->
-            {CAA_State, [{CAA_State, undefined, CAA_State+1}] ++ Delta ++
-            convert(Xs, Method_Name, Arity, true, true, CAA_State, MethodState_Map, Max_StateClause, File_Form)};
+            clause(Xs, Method_Name, Arity, true, true, MethodState_Map, Max_StateClause,
+                ClauseLast_Transition_States,
+                addTraces(Delta, Parent_Last_Transition_States, MAX_CAA_State, undefined),
+                Parent_Last_Transition_States);
         _ -> % when there was just a recursive call inside this clause
-            {CAA_State, [{CAA_State, unlabelled, CAA_State}] ++ Delta ++
-            convert(Xs, Method_Name, Arity, true, true, CAA_State, MethodState_Map, CAA_State, File_Form)}
-    end;
+            clause(Xs, Method_Name, Arity, true, true, MethodState_Map, MAX_CAA_State,
+                [],
+                addTraces(Delta, Parent_Last_Transition_States, MAX_CAA_State-1, unlabelled),
+                Parent_Last_Transition_States)
+end;
 % when there are many clauses in the method and
 % this is the Nth clause where N > 1
-convert([{_,_,_,_,X}|Xs], Method_Name, Arity, true, true, CAA_State, MethodState_Map, Max_StateClause, File_Form) ->
-    {Delta, _, New_Max_StateClause, _} = caa(X, Method_Name, Arity, Max_StateClause+1, MethodState_Map, [], [Max_StateClause+1], File_Form),
-    case Delta == [] of
-        false ->
-            [{CAA_State, undefined, Max_StateClause+1}] ++ Delta ++
-            convert(Xs, Method_Name, Arity, true, true,  CAA_State, MethodState_Map, New_Max_StateClause, File_Form);
-        _ ->  % when there was just a recursive call inside this clause
-            [{CAA_State, unlabelled, CAA_State}] ++ Delta ++
-            convert(Xs, Method_Name, Arity, true, true,  CAA_State, MethodState_Map, Max_StateClause, File_Form)
+clause([{_,_,_,_,Clause_Body}|Xs], Method_Name, Arity, true, true, MethodState_Map, Max_State_lastClause,
+    Clauses_Last_Transition_States, CAA, Parent_Last_Transition_States) ->
+        MAX_CAA_State = lists:max(Parent_Last_Transition_States),
+        {Delta, ClauseLast_Transition_States, New_Max_StateClause, _} =
+            sequential(Clause_Body, Method_Name, Arity, Max_State_lastClause+1, MethodState_Map, [], [Max_State_lastClause+1]),
+        case Delta == [] of
+            false ->
+                clause(Xs, Method_Name, Arity, true, true, MethodState_Map, New_Max_StateClause,
+                ClauseLast_Transition_States ++ Clauses_Last_Transition_States,
+                CAA ++ addTraces(Delta, Parent_Last_Transition_States, MAX_CAA_State, undefined),
+                Parent_Last_Transition_States);
+            _ ->  % when there was just a recursive call inside this clause
+                clause(Xs, Method_Name, Arity, true, true, MethodState_Map, Max_State_lastClause,
+                Clauses_Last_Transition_States,
+                CAA ++ addTraces(Delta, Parent_Last_Transition_States, MAX_CAA_State-1, unlabelled),
+                Parent_Last_Transition_States)
 end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 
 % (Expression, Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States) 
-% caa works on sequential part of the code 
+% sequential works on sequential part of the code 
 
-caa([],_,_,Max_State,_,Delta, Last_Transition_States, _) ->
+sequential([],_,_,Max_State,_,Delta, Last_Transition_States) ->
     % In the tupe the last element represent that there was no recursion in this method
    {lists:reverse(Delta), Last_Transition_States, Max_State, true}; 
 
 % when there is a send in the clause
-caa([{_,_,'!',Process_ID,Data}|Xs], Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, File_Form) ->
-    caa(Xs, Method_Name, Arity, Max_State+1, MethodState_Map,
+sequential([{_,_,'!',Process_ID,Data}|Xs], Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States) ->
+    sequential(Xs, Method_Name, Arity, Max_State+1, MethodState_Map,
         addTraces(Delta, Last_Transition_States, Max_State, {send, Process_ID, Data}),
-        [Max_State+1], File_Form);
+        [Max_State+1]);
 
 % When there is a call to a method
-caa([{call,_,{_,_,Method}, NumArgu}|Xs], Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, File_Form) -> 
+sequential([{call,_,{_,_,Method}, NumArgu}|Xs], Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States) -> 
     MethodCallTo = atom_to_list(Method) ++ "->" ++ integer_to_list(length(NumArgu)),
     case maps:find(MethodCallTo, MethodState_Map) of % when its's a recursion or call to a predecessor method
         {ok, Method_Call_State} -> 
@@ -105,8 +134,8 @@ caa([{call,_,{_,_,Method}, NumArgu}|Xs], Method_Name, Arity, Max_State, MethodSt
 end;
 
 % when none of the above
-caa([_|Xs], Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, File_Form) -> 
-    caa(Xs, Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, File_Form).
+sequential([_|Xs], Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States) -> 
+    sequential(Xs, Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 
