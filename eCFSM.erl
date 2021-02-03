@@ -13,8 +13,8 @@ main(Filename, Method, NumArgu) ->
         {error, OpenError} -> OpenError;
         Form -> case method_Form:getMethod(Form, list_to_atom(Method), NumArgu, Form, [Method ++ "->" ++ integer_to_list(NumArgu)]) of
                     error -> "No such method found";
-                    Method_Form -> 
-                        {CAA, _, _} = caa(Method_Form, [0]),
+                    Method_Form -> %Method_Form
+                        {CAA, _, _} = caa(Method_Form, 0),
                         CAA
                 end
 end.
@@ -42,7 +42,7 @@ end.
 caa({_, _, Method_Name, Arity, Clauses, Method_Term}, Last_Transition_States) ->
     clause(Clauses, Method_Name, Arity, length(Clauses) > 1,
         false, #{Method_Term => Last_Transition_States},
-        0, [], [], Last_Transition_States).
+        0, [], [], [Last_Transition_States]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -61,14 +61,14 @@ clause([], _, _, _, _, _, Max_StateMethod, Clauses_Last_Transition_States, CAA, 
 clause([{_,_,_,_,Clause_Body}], Method_Name, Arity, false, false, MethodState_Map, _, _, _, Parent_Last_Transition_States) ->
     MAX_CAA_State = lists:max(Parent_Last_Transition_States),
     {Delta, Clause_Last_Transition_States, NEW_Max_State, _} = 
-        sequential(Clause_Body, Method_Name, Arity, MAX_CAA_State, MethodState_Map, [], Parent_Last_Transition_States),
+        sequential(Clause_Body, Method_Name, Arity, MAX_CAA_State, MethodState_Map, [], Parent_Last_Transition_States, -1),
     {{MAX_CAA_State, Delta}, Clause_Last_Transition_States, NEW_Max_State};
 % when there are many clauses in the method and
 % this is the first clause
 clause([{_,_,_,_,Clause_Body}|Xs], Method_Name, Arity, true, false, MethodState_Map, _, _, _, Parent_Last_Transition_States) ->
     MAX_CAA_State = lists:max(Parent_Last_Transition_States),
     {Delta, ClauseLast_Transition_States, Max_StateClause, _} = 
-        sequential(Clause_Body, Method_Name, Arity, MAX_CAA_State+1, MethodState_Map, [], [MAX_CAA_State+1]),
+        sequential(Clause_Body, Method_Name, Arity, MAX_CAA_State+1, MethodState_Map, [], [MAX_CAA_State+1], -1),
     case Delta == [] of
         false ->
             clause(Xs, Method_Name, Arity, true, true, MethodState_Map, Max_StateClause,
@@ -87,7 +87,7 @@ clause([{_,_,_,_,Clause_Body}|Xs], Method_Name, Arity, true, true, MethodState_M
     Clauses_Last_Transition_States, CAA, Parent_Last_Transition_States) ->
         MAX_CAA_State = lists:max(Parent_Last_Transition_States),
         {Delta, ClauseLast_Transition_States, New_Max_StateClause, _} =
-            sequential(Clause_Body, Method_Name, Arity, Max_State_lastClause+1, MethodState_Map, [], [Max_State_lastClause+1]),
+            sequential(Clause_Body, Method_Name, Arity, Max_State_lastClause+1, MethodState_Map, [], [Max_State_lastClause+1], -1),
         case Delta == [] of
             false ->
                 clause(Xs, Method_Name, Arity, true, true, MethodState_Map, New_Max_StateClause,
@@ -103,39 +103,78 @@ end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 
-% (Expression, Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States) 
+% (Expression, Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, Pre_assumedStates) 
 % sequential works on sequential part of the code 
 
-sequential([],_,_,Max_State,_,Delta, Last_Transition_States) ->
+sequential([],_,_,Max_State,_,Delta, Last_Transition_States, _) ->
     % In the tupe the last element represent that there was no recursion in this method
    {lists:reverse(Delta), Last_Transition_States, Max_State, true}; 
 
 % when there is a send in the clause
-sequential([{_,_,'!',Process_ID,Data}|Xs], Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States) ->
-    sequential(Xs, Method_Name, Arity, Max_State+1, MethodState_Map,
-        addTraces(Delta, Last_Transition_States, Max_State, {send, Process_ID, Data}),
-        [Max_State+1]);
+sequential([{_,_,'!',Process_ID,Data}|Xs], Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, Pre_assumedState) ->
+    case Max_State + 1 == Pre_assumedState of
+        true->  io:fwrite("ok~n"), Next_state = Max_State+2, % if the transition state is going to br similar to the Pre-assumed State just jump over it
+                sequential(Xs, Method_Name, Arity, Next_state, MethodState_Map,% and  also
+                    addTraces(Delta, Last_Transition_States, Max_State+1, {send, Process_ID, Data}), % passing Max_State+1 instead of Max_State 
+                    [Next_state], Pre_assumedState); % because we want to jump over the pre_Assumed state
+        _   -> io:fwrite("ko~n"),sequential(Xs, Method_Name, Arity, Max_State+1, MethodState_Map,
+                    addTraces(Delta, Last_Transition_States, Max_State, {send, Process_ID, Data}),
+                    [Max_State+1], Pre_assumedState)
+end;
 
-% When there is a call to a method
-sequential([{call,_,{_,_,Method}, NumArgu}|Xs], Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States) -> 
-    MethodCallTo = atom_to_list(Method) ++ "->" ++ integer_to_list(length(NumArgu)),
-    case maps:find(MethodCallTo, MethodState_Map) of % when its's a recursion or call to a predecessor method
-        {ok, Method_Call_State} -> 
-            case Delta == [] of
+% When there is a recursion i.e. call expression
+sequential([{call,_,{_,_,_}, _, Method_Term}|_], _, _, Max_State, MethodState_Map, Delta, Last_Transition_States, _) -> 
+    Call_MethodState = maps:get(Method_Term, MethodState_Map), % get the method starting state
+    case Delta == [] of
                 % when there was no send and receive before
                 % and now it encounters recursion
                 true -> {[], Last_Transition_States, Max_State, false};
                 % when there was send and receive before
                 % this recursion call
-                _ -> changeTracesStates(Delta, Last_Transition_States, [], Method_Call_State, MethodState_Map, [])
-        end;
-        _   -> % when it's a new call to the method
-            [] 
+                _ -> changeTracesStates(Delta, Last_Transition_States, [], Call_MethodState, MethodState_Map, [])
 end;
 
+sequential([{'receive', _, Body}|Xs], Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, _) ->
+    Pre_assumedState = Max_State + 1, % the starting state of the next expression after this.
+    {Recv_Delta, Recv_Max_State} = 
+        receive_block(Body, Pre_assumedState, Pre_assumedState, Method_Name, Arity, MethodState_Map, Delta, Last_Transition_States, [Max_State]),
+    sequential(Xs, Method_Name, Arity, Recv_Max_State, MethodState_Map, Recv_Delta, [Pre_assumedState], -1);
+
+
 % when none of the above
-sequential([_|Xs], Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States) -> 
-    sequential(Xs, Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States).
+sequential([_|Xs], Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, Pre_assumedState) -> 
+    sequential(Xs, Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, Pre_assumedState).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% deals with the clauses of a receive block
+% ([{'caluse', Anno, [receive], [], [expressions]}|Xs],
+% pre-assumedState, the last receive clause max state,
+% Method name, Method arity, MethodState_Map, delta, last transition state,
+% and the starting state of the receive block)
+receive_block([], _, LastClause_Max_State, _, _, _, Delta, _, _) ->
+    {Delta, LastClause_Max_State};
+receive_block([{_, _, Recv, _, Body}|Xs], Pre_assumedState, LastClause_Max_State, Method_Name, Arity, MethodState_Map, Delta, Last_Transition_States, Recv_Start_State) ->
+    {Recv_Delta, _, Recv_Max_State, _ } = 
+        sequential(Body, Method_Name, Arity, LastClause_Max_State+1, MethodState_Map,
+            addTraces(Delta, Recv_Start_State, LastClause_Max_State, {recv, Recv}),
+                [LastClause_Max_State+1], LastClause_Max_State),
+    Pre_assumedState_Delta = 
+        recv_changeTracesStates(lists:reverse(Recv_Delta), Pre_assumedState, MethodState_Map),
+    receive_block(Xs, Pre_assumedState, Recv_Max_State, Method_Name, Arity, MethodState_Map, Pre_assumedState_Delta, [Recv_Max_State], Recv_Start_State).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% changes the max state of the receive clause to the pre assumed state
+% delta, pre-assumed state, MethodState_Map
+
+recv_changeTracesStates([{First_State, Label, Last_State}|Xs], Pre_assumedState, MethodState_Map) ->
+    case lists:member(Last_State, maps:values(MethodState_Map)) of
+        % if the last state is not representing a recursion
+        false   ->  [{First_State, Label, Pre_assumedState}|Xs];
+        _       ->  [{First_State, Label, Last_State}|Xs]
+end.      
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 
