@@ -103,7 +103,7 @@ end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%
 
-% (Expression, Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, Pre_assumedStates) 
+% (Expression, Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States,  Last_Pre_assumedState) 
 % sequential works on sequential part of the code 
 
 sequential([],_,_,Max_State,_,Delta, Last_Transition_States, _) ->
@@ -111,16 +111,10 @@ sequential([],_,_,Max_State,_,Delta, Last_Transition_States, _) ->
    {lists:reverse(Delta), Last_Transition_States, Max_State, true}; 
 
 % when there is a send in the clause
-sequential([{_,_,'!',Process_ID,Data}|Xs], Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, Pre_assumedState) ->
-    case Max_State + 1 == Pre_assumedState of
-        true->  io:fwrite("ok~n"), Next_state = Max_State+2, % if the transition state is going to br similar to the Pre-assumed State just jump over it
-                sequential(Xs, Method_Name, Arity, Next_state, MethodState_Map,% and  also
-                    addTraces(Delta, Last_Transition_States, Max_State+1, {send, Process_ID, Data}), % passing Max_State+1 instead of Max_State 
-                    [Next_state], Pre_assumedState); % because we want to jump over the pre_Assumed state
-        _   -> io:fwrite("ko~n"),sequential(Xs, Method_Name, Arity, Max_State+1, MethodState_Map,
-                    addTraces(Delta, Last_Transition_States, Max_State, {send, Process_ID, Data}),
-                    [Max_State+1], Pre_assumedState)
-end;
+sequential([{_,_,'!',Process_ID,Data}|Xs], Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, Last_Pre_assumedState) ->
+    sequential(Xs, Method_Name, Arity, Max_State+1, MethodState_Map,
+        addTraces(Delta, Last_Transition_States, Max_State, {send, Process_ID, Data}),
+            [Max_State+1],  Last_Pre_assumedState);
 
 % When there is a recursion i.e. call expression
 sequential([{call,_,{_,_,_}, _, Method_Term}|_], _, _, Max_State, MethodState_Map, Delta, Last_Transition_States, _) -> 
@@ -134,16 +128,25 @@ sequential([{call,_,{_,_,_}, _, Method_Term}|_], _, _, Max_State, MethodState_Ma
                 _ -> changeTracesStates(Delta, Last_Transition_States, [], Call_MethodState, MethodState_Map, [])
 end;
 
-sequential([{'receive', _, Body}|Xs], Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, _) ->
-    Pre_assumedState = Max_State + 1, % the starting state of the next expression after this.
+sequential([{'receive', _, Body}|Xs], Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States,  Last_Pre_assumedState) ->
+    case Xs == [] andalso  Last_Pre_assumedState =/= -1 of
+        % when the there is nothing after this receive block
+        % and this is a nested receive block. look at example "recv6(S, Z)"
+        % 2nd receive nested receive block
+        true -> Pre_assumedState = Last_Pre_assumedState;
+        % when this is either the very first receive block or there are 
+        % other stuff after this receive block. look at example "recv(S, Z)"
+        % or "recv6(S, Z)" first recive nested receive block
+        _ -> Pre_assumedState = Max_State + 1 % the starting state of the next expression after this.
+    end,
     {Recv_Delta, Recv_Max_State} = 
-        receive_block(Body, Pre_assumedState, Pre_assumedState, Method_Name, Arity, MethodState_Map, Delta, Last_Transition_States, [Max_State]),
-    sequential(Xs, Method_Name, Arity, Recv_Max_State, MethodState_Map, Recv_Delta, [Pre_assumedState], -1);
+        receive_block(Body, Pre_assumedState, Max_State + 1, Method_Name, Arity, MethodState_Map, Delta, Last_Transition_States, [Max_State]),
+    sequential(Xs, Method_Name, Arity, Recv_Max_State, MethodState_Map, Recv_Delta, [Pre_assumedState], Pre_assumedState);
 
 
 % when none of the above
-sequential([_|Xs], Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, Pre_assumedState) -> 
-    sequential(Xs, Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, Pre_assumedState).
+sequential([_|Xs], Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, Last_Pre_assumedState) -> 
+    sequential(Xs, Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, Last_Pre_assumedState).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -159,7 +162,7 @@ receive_block([{_, _, Recv, _, Body}|Xs], Pre_assumedState, LastClause_Max_State
     {Recv_Delta, _, Recv_Max_State, _ } = 
         sequential(Body, Method_Name, Arity, LastClause_Max_State+1, MethodState_Map,
             addTraces(Delta, Recv_Start_State, LastClause_Max_State, {recv, Recv}),
-                [LastClause_Max_State+1], LastClause_Max_State),
+                [LastClause_Max_State+1], Pre_assumedState),
     Pre_assumedState_Delta = 
         recv_changeTracesStates(lists:reverse(Recv_Delta), Pre_assumedState, MethodState_Map),
     receive_block(Xs, Pre_assumedState, Recv_Max_State, Method_Name, Arity, MethodState_Map, Pre_assumedState_Delta, [Recv_Max_State], Recv_Start_State).
