@@ -186,7 +186,6 @@ call1(S, Z) ->
 
 
 %%%%%%%%%%%%%%%%%%%%% For Receive expression
-
 recv(S, Z) ->
     S!Z,
     receive
@@ -277,5 +276,19 @@ recv7(S, Z) ->
     S!"Hi",
     S!"Bye",
     recv7(S, Z).
+
+recv8(S, Z) ->
+    S!Z,
+    receive
+        x -> S!x;
+        y -> S!y
+    end,
+    receive
+        x -> S!x;
+        y -> S!y
+    end,
+    S!"Hi",
+    S!"Bye",
+    recv8(S, Z).
     
 
