@@ -16,6 +16,7 @@ end.
 e(S,Z) ->
     Z!S,
     Z!S+1,
+    e(S),
     receive
         {get, P} -> P!S, e(S,Z);
         {put, X} -> e(X,Z)
@@ -174,3 +175,107 @@ e8(send, S,Z) ->
     Z!S;
 e8(X, S,Z) ->
     X ! S, Z! S.
+
+
+%%%%%%%%%%%%%%%%%%% For call expressions
+
+call1(S, Z) -> 
+    S!Z,
+    S!4,
+    call1(S,Z).
+
+
+%%%%%%%%%%%%%%%%%%%%% For Receive expression
+
+recv(S, Z) ->
+    S!Z,
+    receive
+        {hello, C} -> C!"hi";
+        {bye, C}  -> C!"Gn"
+    end.
+
+recv1(S, Z) ->
+    S!Z,
+    receive
+        {hello, C} -> C!"hi";
+        {bye, C}  -> C!"Gn"
+    end,
+    recv1(S, Z).
+
+recv2(S, Z) ->
+    S!Z,
+    receive
+        {hello, C} -> C!"hi";
+        {bye, C}  -> C!"Gn"
+    end,
+    S!"Hi",
+    recv2(S, Z).
+
+recv3(S, Z) ->
+    S!Z,
+    receive
+        {hello, C} -> C!"hi";
+        {bye, C}  -> C!"Gn",
+                    recv3(S,Z)
+    end,
+    S!"Hi",
+    recv3(S, Z).
+
+recv4(S, Z) ->
+    S!Z,
+    receive
+        {hello, C} -> C!"hi";
+        {bye, C}  -> C!"Gn",
+                    recv4(S,Z)
+    end,
+    S!"Hi",
+    S!"Bye",
+    recv4(S, Z).
+
+recv5(S, Z) ->
+    S!Z,
+    receive
+        {hello, C} -> C!"hi";
+        {bye, C}  -> C!"Gn"
+    end,
+    S!"Hi",
+    S!"Bye",
+    recv5(S, Z).
+
+recv6(S, Z) ->
+    S!Z,
+    receive
+        {hello, C} -> C!"hi",
+                        receive
+                            x -> C!x;
+                            y  -> C!y
+                        end,
+                        C!done;
+        {bye, C}  -> C!"Gn",
+                    receive
+                        x -> C!x;
+                        y  -> C!y
+                    end
+    end,
+    S!"Hi",
+    S!"Bye",
+    recv6(S, Z).
+
+recv7(S, Z) ->
+    S!Z,
+    receive
+        {hello, C} -> receive
+                            x -> C!x;
+                            y  -> C!y
+                        end,
+                        C!done;
+        {bye, C}  -> receive
+                        x -> C!x;
+                        y  -> C!y
+                    end
+    end,
+    S!"Hi",
+    S!"Bye",
+    recv7(S, Z).
+    
+
