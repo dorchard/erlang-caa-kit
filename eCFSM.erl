@@ -140,8 +140,8 @@ sequential([{'receive', _, Body}|Xs], Method_Name, Arity, Max_State, MethodState
         _ -> Pre_assumedState = Max_State + 1 % the starting state of the next expression after this.
     end,
     {Recv_Delta, Recv_Max_State} = 
-        receive_block(Body, Pre_assumedState, Max_State + 1, Method_Name, Arity, MethodState_Map, Delta, Last_Transition_States, [Max_State]),
-    sequential(Xs, Method_Name, Arity, Recv_Max_State, MethodState_Map, Recv_Delta, [Pre_assumedState], Pre_assumedState);
+        receive_block(Body, Pre_assumedState, Max_State + 1, Method_Name, Arity, MethodState_Map, Delta, Last_Transition_States),
+    sequential(Xs, Method_Name, Arity, Recv_Max_State, MethodState_Map, Recv_Delta, [Pre_assumedState], Last_Pre_assumedState);
 
 
 % when none of the above
@@ -155,17 +155,17 @@ sequential([_|Xs], Name, Arity, Max_State, MethodState_Map, Delta, Last_Transiti
 % ([{'caluse', Anno, [receive], [], [expressions]}|Xs],
 % pre-assumedState, the last receive clause max state,
 % Method name, Method arity, MethodState_Map, delta, last transition state,
-% and the starting state of the receive block)
-receive_block([], _, LastClause_Max_State, _, _, _, Delta, _, _) ->
+% or the starting state of the receive block)
+receive_block([], _, LastClause_Max_State, _, _, _, Delta, _) ->
     {Delta, LastClause_Max_State};
-receive_block([{_, _, Recv, _, Body}|Xs], Pre_assumedState, LastClause_Max_State, Method_Name, Arity, MethodState_Map, Delta, Last_Transition_States, Recv_Start_State) ->
+receive_block([{_, _, Recv, _, Body}|Xs], Pre_assumedState, LastClause_Max_State, Method_Name, Arity, MethodState_Map, Delta, Last_Transition_States) ->
     {Recv_Delta, _, Recv_Max_State, _ } = 
         sequential(Body, Method_Name, Arity, LastClause_Max_State+1, MethodState_Map,
-            addTraces(Delta, Recv_Start_State, LastClause_Max_State, {recv, Recv}),
+            addTraces(Delta, Last_Transition_States, LastClause_Max_State, {recv, Recv}),
                 [LastClause_Max_State+1], Pre_assumedState),
     Pre_assumedState_Delta = 
         recv_changeTracesStates(lists:reverse(Recv_Delta), Pre_assumedState, MethodState_Map),
-    receive_block(Xs, Pre_assumedState, Recv_Max_State, Method_Name, Arity, MethodState_Map, Pre_assumedState_Delta, [Recv_Max_State], Recv_Start_State).
+    receive_block(Xs, Pre_assumedState, Recv_Max_State, Method_Name, Arity, MethodState_Map, Pre_assumedState_Delta, Last_Transition_States).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
