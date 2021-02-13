@@ -290,5 +290,48 @@ recv8(S, Z) ->
     S!"Hi",
     S!"Bye",
     recv8(S, Z).
-    
+
+recv9(S, Z) ->
+        S!Z,
+    receive
+        {hello, C} -> receive
+                            x -> C!x;
+                            y  -> C!y
+                        end,
+                        receive
+                            x -> C!x;
+                            y  -> C!y
+                        end,
+                        C!done;
+        {bye, C}  -> receive
+                        x -> C!x;
+                        y  -> C!y
+                    end,
+                    receive
+                        x -> C!x;
+                        y  -> C!y
+                    end
+    end,
+    % recv9(S, Z). % testing it works
+    S!"Hi",
+    S!"Bye",
+    recv9(S, Z).
+
+%%%%%%%%%%%%%%%%%%%%% For Function expression i.e. call to another function
+
+func(S, Z) ->
+    S!Z, 
+    func1(S,Z),
+    receive
+        x -> S!x;
+        y -> S!y
+    end,
+    S!Z.
+
+func1(S, Z) ->
+    receive
+        {get, P} -> P!Z;
+        {"hi", P} -> P!"hello"
+    end,
+    S!Z.
 
