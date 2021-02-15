@@ -144,9 +144,9 @@ sequential([{'receive', _, Body}|Xs], Method_Name, Arity, Max_State, MethodState
 
 sequential([{function, Anno, CallMethod_Name, CallArity, Clauses, Method_Term}|Xs], Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States,  Last_Pre_assumedState) ->
     case caa({function, Anno, CallMethod_Name, CallArity, Clauses, Method_Term}, MethodState_Map, lists:nth(1, Last_Transition_States), Last_Pre_assumedState) of
-        {Func_Delta, Func_Last_Transition_States, Func_Max_State} -> % when there was no recursion inside this child method
+        {{Func_StartState, Func_Delta}, Func_Last_Transition_States, Func_Max_State} -> % when there was no recursion inside this child method
             sequential(Xs, Method_Name, Arity, Func_Max_State, MethodState_Map, lists:reverse(Func_Delta) ++ Delta , Func_Last_Transition_States,  Last_Pre_assumedState);
-        {Func_Delta, Func_Last_Transition_States, Func_Max_State} -> % when there was recursion inside this child method
+        {{Func_StartState, Func_Delta}, Func_Last_Transition_States, Func_Max_State} -> % when there was recursion inside this child method
             {lists:reverse(Delta) ++ Func_Delta, Func_Last_Transition_States, Func_Max_State, false}
     end;
 
