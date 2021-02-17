@@ -91,7 +91,7 @@ clause([{_,_,_,_,Clause_Body}|Xs], Method_Name, Arity, true, true, MethodState_M
             false ->
                 clause(Xs, Method_Name, Arity, true, true, MethodState_Map, New_Max_StateClause,
                 ClauseLast_Transition_States ++ Clauses_Last_Transition_States,
-                CAA ++ addTraces(Delta, Parent_Last_Transition_States, MAX_CAA_State, undefined),
+                CAA ++ addTraces(Delta, Parent_Last_Transition_States, Max_State_lastClause, undefined),
                 Parent_Last_Transition_States, Pre_assumedState);
             _ ->  % when there was just a recursive call inside this clause
                 clause(Xs, Method_Name, Arity, true, true, MethodState_Map, Max_State_lastClause,
@@ -138,9 +138,12 @@ sequential([{'receive', _, Body}|Xs], Method_Name, Arity, Max_State, MethodState
         % or "recv6(S, Z)" first recive nested receive block
         _ -> Pre_assumedState = Max_State + 1 % the starting state of the next expression after this.
     end,
-    {Recv_Delta, Recv_Max_State} = 
-        receive_block(Body, Pre_assumedState, Max_State + 1, Method_Name, Arity, MethodState_Map, Delta, Last_Transition_States),
-    sequential(Xs, Method_Name, Arity, Recv_Max_State, MethodState_Map, Recv_Delta, [Pre_assumedState], Last_Pre_assumedState);
+    {Recv_Delta, Recv_Max_State, N_Clauses} = 
+        receive_block(Body, Pre_assumedState, Max_State + 1, Method_Name, Arity, MethodState_Map, Delta, Last_Transition_States, length(Body)),
+        case N_Clauses == 0 of % when all the clauses have recursion
+            true    -> {lists:reverse(Recv_Delta), [Pre_assumedState], Recv_Max_State, false};
+            _       -> sequential(Xs, Method_Name, Arity, Recv_Max_State, MethodState_Map, Recv_Delta, [Pre_assumedState], Last_Pre_assumedState)
+end;
 
 sequential([{function, Anno, CallMethod_Name, CallArity, Clauses, Method_Term}|Xs], Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States,  Last_Pre_assumedState) ->
     case caa({function, Anno, CallMethod_Name, CallArity, Clauses, Method_Term}, MethodState_Map, lists:nth(1, Last_Transition_States), Last_Pre_assumedState) of
@@ -151,7 +154,7 @@ sequential([{function, Anno, CallMethod_Name, CallArity, Clauses, Method_Term}|X
     end;
 
 % when none of the above
-sequential([X|Xs], Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, Last_Pre_assumedState) -> 
+sequential([_|Xs], Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, Last_Pre_assumedState) -> 
     sequential(Xs, Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States, Last_Pre_assumedState).
 
 
@@ -161,17 +164,21 @@ sequential([X|Xs], Name, Arity, Max_State, MethodState_Map, Delta, Last_Transiti
 % ([{'caluse', Anno, [receive], [], [expressions]}|Xs],
 % pre-assumedState, the last receive clause max state,
 % Method name, Method arity, MethodState_Map, delta, last transition state,
-% or the starting state of the receive block)
-receive_block([], _, LastClause_Max_State, _, _, _, Delta, _) ->
-    {Delta, LastClause_Max_State};
-receive_block([{_, _, Recv, _, Body}|Xs], Pre_assumedState, LastClause_Max_State, Method_Name, Arity, MethodState_Map, Delta, Last_Transition_States) ->
-    {Recv_Delta, _, Recv_Max_State, _ } = 
+% or the starting state of the receive block, number of clauses)
+receive_block([], _, LastClause_Max_State, _, _, _, Delta, _, N_Clauses) ->
+    {Delta, LastClause_Max_State, N_Clauses};
+receive_block([{_, _, Recv, _, Body}|Xs], Pre_assumedState, LastClause_Max_State, Method_Name, Arity, MethodState_Map, Delta, Last_Transition_States, N_Clauses) ->
+    {Recv_Delta, _, Recv_Max_State, NoRecusrion} = 
         sequential(Body, Method_Name, Arity, LastClause_Max_State+1, MethodState_Map,
             addTraces(Delta, Last_Transition_States, LastClause_Max_State, {recv, Recv}),
                 [LastClause_Max_State+1], Pre_assumedState),
     Pre_assumedState_Delta = 
         recv_changeTracesStates(lists:reverse(Recv_Delta), Pre_assumedState, MethodState_Map),
-    receive_block(Xs, Pre_assumedState, Recv_Max_State, Method_Name, Arity, MethodState_Map, Pre_assumedState_Delta, Last_Transition_States).
+        case NoRecusrion == true of % when there was no recursion in this clause
+            true    -> receive_block(Xs, Pre_assumedState, Recv_Max_State, Method_Name, Arity, MethodState_Map, Pre_assumedState_Delta, Last_Transition_States, N_Clauses);
+            _       -> receive_block(Xs, Pre_assumedState, Recv_Max_State, Method_Name, Arity, MethodState_Map, Pre_assumedState_Delta, Last_Transition_States, N_Clauses-1)
+end. 
+    
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
