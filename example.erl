@@ -173,8 +173,9 @@ e8(recv,S,Z) ->
 end;
 e8(send, S,Z) ->
     Z!S;
-e8(X, S,Z) ->
-    X ! S, Z! S.
+e8(X, S, Z) ->
+    X!S,
+    Z!S.
 
 
 %%%%%%%%%%%%%%%%%%% For call expressions
@@ -316,6 +317,62 @@ recv9(S, Z) ->
     S!"Hi",
     S!"Bye",
     recv9(S, Z).
+
+recv10(S, Z) ->
+    S!Z,
+    receive
+        {hello, C} -> C!"hi",
+                        recv10(S,Z);
+        {bye, C}  -> C!"Gn",
+                    recv10(S,Z)
+    end,
+    S!"Hi",
+    S!"Bye",
+    recv10(S, Z).
+
+recv11(S, Z) ->
+    S!Z,
+    receive
+        {hello, C} -> C!"hi",
+                        receive
+                            x -> C!x, 
+                                recv11(S, Z);
+                            y  -> C!y,
+                                recv11(S, Z)
+                        end,
+                        C!done;
+        {bye, C}  -> C!"Gn",
+                    receive
+                        x -> C!x;
+                        y  -> C!y
+                    end
+    end,
+    S!"Hi",
+    S!"Bye",
+    recv11(S, Z).
+
+recv12(S, Z) ->
+    S!Z,
+    receive
+        {hello, C} -> C!"hi",
+                        receive
+                            x -> C!x, 
+                                recv12(S, Z);
+                            y  -> C!y,
+                                recv12(S, Z)
+                        end,
+                        C!done;
+        {bye, C}  -> C!"Gn",
+        receive
+            x -> C!x, 
+                recv12(S, Z);
+            y  -> C!y,
+                recv12(S, Z)
+        end
+    end,
+    S!"Hi",
+    S!"Bye",
+    recv12(S, Z).
 
 %%%%%%%%%%%%%%%%%%%%% For Function expression i.e. call to another function
 
