@@ -174,7 +174,7 @@ end,
      case Recv10 == eCFSM:main("example.erl", "recv10", 2) of
        true -> print(10, true);
        _    -> print(10, false)
-  end.
+  end,
 
     Recv11 = {0,
     [{0,{send,{var,334,'S'},{var,334,'Z'}},1},
