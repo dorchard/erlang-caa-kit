@@ -374,21 +374,21 @@ recv12(S, Z) ->
     S!"Bye",
     recv12(S, Z).
 
-%%%%%%%%%%%%%%%%%%%%% For Function expression i.e. call to another function
-
-func(S, Z) ->
-    S!Z, 
-    func1(S,Z),
+recv13(S, Z) ->
+        S!Z,
     receive
-        x -> S!x;
-        y -> S!y
+        {hello, C} -> C!"hi";
+        {bye, C}  -> C!"Gn",
+                     C!"sleep",
+                    recv13(S, Z)
     end,
-    S!Z.
+    recv13(S, Z),
+    S!"Hi",
+    S!"Bye",
+    recv13(S, Z).
+    
 
-func1(S, Z) ->
-    receive
-        {get, P} -> P!Z;
-        {"hi", P} -> P!"hello"
-    end,
-    S!Z.
+
+
+
 
