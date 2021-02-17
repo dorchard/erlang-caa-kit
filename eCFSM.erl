@@ -72,37 +72,66 @@ clause([{_,_,_,_,Clause_Body}], Method_Name, Arity, false, false, MethodState_Ma
 % this is the first clause
 clause([{_,_,_,_,Clause_Body}|Xs], Method_Name, Arity, true, false, MethodState_Map, _, _, _, Parent_Last_Transition_States, Pre_assumedState, Transition_States, Length_Clauses, _) ->
     MAX_CAA_State = lists:max(Transition_States),
-    {Delta, ClauseLast_Transition_States, _, Clause_Transition_States, NoRecursion} = 
-        sequential(Clause_Body, Method_Name, Arity, MAX_CAA_State+2, MethodState_Map, [], [MAX_CAA_State+2], Pre_assumedState, [MAX_CAA_State+2, MAX_CAA_State+1] ++ Transition_States), % MAX_CAA_State+2 coz MAX_CAA_State+1 is going to be our Clauses Pre_assumedState
+    case Pre_assumedState =/= -1 of
+        true -> % i.e. when this is a method call, from inside a recieve block
+            {Delta, ClauseLast_Transition_States, _, Clause_Transition_States, NoRecursion} = 
+                sequential(Clause_Body, Method_Name, Arity, MAX_CAA_State+2, MethodState_Map, [], [MAX_CAA_State+2],
+                    Pre_assumedState, [MAX_CAA_State+2] ++ Transition_States); % MAX_CAA_State+2 coz MAX_CAA_State+1 is going to be our Clauses Pre_assumedState
+        _   ->  % otherwise we can pass the "clause ending pre_assumed state" in the place of Pre_assumedState (coz it's -1), so that it will do the 
+                % changing of states for us. 
+            {Delta, ClauseLast_Transition_States, _, Clause_Transition_States, NoRecursion} = 
+                sequential(Clause_Body, Method_Name, Arity, MAX_CAA_State+2, MethodState_Map, [], [MAX_CAA_State+2],
+                    MAX_CAA_State+1, [MAX_CAA_State+2] ++ Transition_States) % the first parameter at this line
+    end,
     case Delta == [] of
         false ->
-            % change the last transition state to the clause pre-assumed state
-            {Changed_Delta, Changed_Last_Transition_States, _, Changed_Transition_States, _} =
-                changeTracesStates(lists:reverse(Delta), ClauseLast_Transition_States, [], MAX_CAA_State+1, MethodState_Map, ClauseLast_Transition_States, Clause_Transition_States),
+            {Changed_Delta, Changed_Transition_States, Changed_Last_Transition_States} =
+                clause_changeTracesStates(lists:reverse(Delta), Pre_assumedState, MAX_CAA_State+1, MethodState_Map, Clause_Transition_States),
+            % % change the last transition state to the clause pre-assumed state
+            % {Changed_Delta, Changed_Last_Transition_States, _, Changed_Transition_States, _} =
+            %     changeTracesStates(lists:reverse(Delta), ClauseLast_Transition_States, [], MAX_CAA_State+1, MethodState_Map, ClauseLast_Transition_States, Clause_Transition_States),
+            % clause(Xs, Method_Name, Arity, true, true, MethodState_Map, lists:max(Changed_Transition_States),
+            %     Changed_Last_Transition_States,
+            %     addTraces(Changed_Delta, Parent_Last_Transition_States, MAX_CAA_State+1, undefined),
+            %     Parent_Last_Transition_States, Pre_assumedState, Changed_Transition_States, noRecursion(NoRecursion, Length_Clauses), MAX_CAA_State+1);
             clause(Xs, Method_Name, Arity, true, true, MethodState_Map, lists:max(Changed_Transition_States),
                 Changed_Last_Transition_States,
-                addTraces(Changed_Delta, Parent_Last_Transition_States, MAX_CAA_State+1, undefined),
-                Parent_Last_Transition_States, Pre_assumedState, Changed_Transition_States, noRecursion(NoRecursion, Length_Clauses), MAX_CAA_State+1);
+                    addTraces(lists:reverse(Changed_Delta), Parent_Last_Transition_States, MAX_CAA_State+1, undefined),
+                        Parent_Last_Transition_States, Pre_assumedState, Changed_Transition_States, noRecursion(NoRecursion, Length_Clauses), MAX_CAA_State+1);
         _ -> % when there was just a recursive call inside this clause
             clause(Xs, Method_Name, Arity, true, true, MethodState_Map, MAX_CAA_State+1,
                 [],
                 addTraces(Delta, Parent_Last_Transition_States, lists:nth(1, Parent_Last_Transition_States)-1, unlabelled),
-                Parent_Last_Transition_States, Pre_assumedState, [MAX_CAA_State+1|Transition_States], Length_Clauses-1, MAX_CAA_State+1)
+                Parent_Last_Transition_States, Pre_assumedState, Transition_States, Length_Clauses-1, MAX_CAA_State+1)
 end;
 % when there are many clauses in the method and
 % this is the Nth clause where N > 1
 clause([{_,_,_,_,Clause_Body}|Xs], Method_Name, Arity, true, true, MethodState_Map, Max_State_lastClause,
     Clauses_Last_Transition_States, CAA, Parent_Last_Transition_States, Pre_assumedState, Transition_States, Length_Clauses, ClausesPre_assumedState) ->
-        {Delta, ClauseLast_Transition_States, _, Clause_Transition_States, NoRecursion} =
-            sequential(Clause_Body, Method_Name, Arity, Max_State_lastClause+1, MethodState_Map, [], [Max_State_lastClause+1], Pre_assumedState, [Max_State_lastClause+1|Transition_States]),
+        case Pre_assumedState =/= -1 of
+            true ->
+                {Delta, ClauseLast_Transition_States, _, Clause_Transition_States, NoRecursion} = 
+                    sequential(Clause_Body, Method_Name, Arity, Max_State_lastClause+1, MethodState_Map, [], [Max_State_lastClause+1],
+                        Pre_assumedState, [Max_State_lastClause+1|Transition_States]); % Max_State_lastClause+1 coz of the unlabelled or undefined transition
+            _   ->
+                {Delta, ClauseLast_Transition_States, _, Clause_Transition_States, NoRecursion} = 
+                    sequential(Clause_Body, Method_Name, Arity, Max_State_lastClause+1, MethodState_Map, [], [Max_State_lastClause+1],
+                        ClausesPre_assumedState, [Max_State_lastClause+1|Transition_States])
+        end,
         case Delta == [] of
             false ->
-                {Changed_Delta, Changed_Last_Transition_States, _, Changed_Transition_States, _} =
-                changeTracesStates(lists:reverse(Delta), ClauseLast_Transition_States, [], ClausesPre_assumedState, MethodState_Map, ClauseLast_Transition_States, Clause_Transition_States),
+                {Changed_Delta, Changed_Transition_States, Changed_Last_Transition_States} =
+                    clause_changeTracesStates(lists:reverse(Delta), Pre_assumedState, ClausesPre_assumedState, MethodState_Map, Clause_Transition_States),
+                % {Changed_Delta, Changed_Last_Transition_States, _, Changed_Transition_States, _} =
+                % changeTracesStates(lists:reverse(Delta), ClauseLast_Transition_States, [], ClausesPre_assumedState, MethodState_Map, ClauseLast_Transition_States, Clause_Transition_States),
+                % clause(Xs, Method_Name, Arity, true, true, MethodState_Map, lists:max(Changed_Transition_States),
+                % Changed_Last_Transition_States ++ Clauses_Last_Transition_States,
+                % CAA ++ addTraces(Changed_Delta, Parent_Last_Transition_States, Max_State_lastClause, undefined),
+                % Parent_Last_Transition_States, Pre_assumedState, Changed_Transition_States, noRecursion(NoRecursion, Length_Clauses), ClausesPre_assumedState);
                 clause(Xs, Method_Name, Arity, true, true, MethodState_Map, lists:max(Changed_Transition_States),
-                Changed_Last_Transition_States ++ Clauses_Last_Transition_States,
-                CAA ++ addTraces(Changed_Delta, Parent_Last_Transition_States, Max_State_lastClause, undefined),
-                Parent_Last_Transition_States, Pre_assumedState, Changed_Transition_States, noRecursion(NoRecursion, Length_Clauses), ClausesPre_assumedState);
+                Changed_Last_Transition_States,
+                    CAA ++ addTraces(lists:reverse(Changed_Delta), Parent_Last_Transition_States, Max_State_lastClause, undefined),
+                            Parent_Last_Transition_States, Pre_assumedState, Changed_Transition_States, noRecursion(NoRecursion, Length_Clauses), ClausesPre_assumedState);
             _ ->  % when there was just a recursive call inside this clause
                 clause(Xs, Method_Name, Arity, true, true, MethodState_Map, Max_State_lastClause,
                 Clauses_Last_Transition_States,
@@ -110,6 +139,24 @@ clause([{_,_,_,_,Clause_Body}|Xs], Method_Name, Arity, true, true, MethodState_M
                 Parent_Last_Transition_States, Pre_assumedState, Transition_States, Length_Clauses-1, ClausesPre_assumedState)
 end.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% changes the max state of the clauses to the pre assumed state
+% delta, pre-assumed state, MethodState_Map
+
+% The 2 clauses blow cover: when the last expression of this clause is a receive expression, then we don't have to do anything coz 
+% we have already dealth with this case by now
+clause_changeTracesStates([{First_State, Label, Pre_assumedState}|Xs], Pre_assumedState, _, _, Transition_States) ->
+    {[{First_State, Label, Pre_assumedState}|Xs], Transition_States, [Pre_assumedState]};
+clause_changeTracesStates([{First_State, Label, ClausesPre_assumedState}|Xs], _, ClausesPre_assumedState, _, Transition_States) ->
+    {[{First_State, Label, ClausesPre_assumedState}|Xs], Transition_States, [ClausesPre_assumedState]};
+
+clause_changeTracesStates([{First_State, Label, Last_State}|Xs], _, ClausesPre_assumedState, MethodState_Map, Transition_States) ->
+    case lists:member(Last_State, maps:values(MethodState_Map)) of
+        % if the last state is not representing a recursion
+        false   ->  {[{First_State, Label, ClausesPre_assumedState}|Xs], lists:delete(Last_State, Transition_States), [ClausesPre_assumedState]};
+        _       ->  {[{First_State, Label, Last_State}|Xs], Transition_States, [Last_State]}
+end.  
 %%%%%%%%%%%%%%%%%%%%%%%%
 
 % (Expression, Method_Name, Arity, Max_State, MethodState_Map, Delta, Last_Transition_States,  Last_Pre_assumedStates, All the transition state ) 
