@@ -6,16 +6,16 @@
 % Takes the filename (with extension), method name and
 % its arity. Returns its CAA form.
 % example are provided in example.erl and toRead2.erl   
-% c(eCFSM), rp(eCFSM:main("example.erl", "Methodname", Arity(int))).
+% c(eCFSM), c(method_form), c(visualisation), eCFSM:main("example.erl", "Methodname", Arity(int)).
 
 main(Filename, Method, NumArgu) ->
     case parseToForm(Filename) of
         {error, OpenError} -> OpenError;
         Form -> case method_Form:getMethod(Form, list_to_atom(Method), NumArgu, Form, [Method ++ "->" ++ integer_to_list(NumArgu)]) of
                     error -> "No such method found";
-                    Method_Form -> {CAA, _, _, Transition_States, _} = caa(Method_Form, #{}, 0, -1, [0]),
-                        io:fwrite("the transtion states ~p~n", [Transition_States]),
-                        CAA
+                    Method_Form -> {CAA, _, _, _, _} = caa(Method_Form, #{}, 0, -1, [0]),
+                        file:write_file("automata.txt", lists:flatten(io_lib:format("~p", [CAA]))),
+                        visualisation:graph(CAA)
                 end
 end.
     
