@@ -13,7 +13,7 @@ graph({Start_State, [{From, Label, To}|Xs]}) ->
     file:write_file("graph.dot", CAA),
     % installs Graphviz
     installGraphviz(os:type()),
-    io:fwrite("For more informatioon regrading Grapghviz, please visit there website: http://www.graphviz.org/download/ ~n"),
+    io:fwrite("For more information regrading Grapghviz, please visit their website: http://www.graphviz.org/download/ ~n"),
     % compiles the file and create a visual graph in pdf
     os:cmd("dot -Tpdf graph.dot > CAA.pdf"),
     % opens the file
