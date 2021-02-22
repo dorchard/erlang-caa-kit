@@ -6,9 +6,11 @@
 % Takes the filename (with extension), method name and
 % its arity. Returns its CAA form.
 % example are provided in example.erl and toRead2.erl   
-% c(eCFSM), c(method_form), c(visualisation), eCFSM:main("example.erl", "Methodname", Arity(int)).
+% c(eCFSM), eCFSM:main("example.erl", "Methodname", Arity(int)).
 
 main(Filename, Method, NumArgu) ->
+    compile:file("visualisation"),
+    compile:file("method_Form"),
     case parseToForm(Filename) of
         {error, OpenError} -> OpenError;
         Form -> case method_Form:getMethod(Form, list_to_atom(Method), NumArgu, Form, [Method ++ "->" ++ integer_to_list(NumArgu)]) of
