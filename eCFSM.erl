@@ -16,6 +16,7 @@ main(Filename, Method, NumArgu) ->
         Form -> case method_Form:getMethod(Form, list_to_atom(Method), NumArgu, Form, [Method ++ "->" ++ integer_to_list(NumArgu)]) of
                     error -> "No such method found";
                     Method_Form -> {CAA, _, _, _, _} = caa(Method_Form, #{}, 0, -1, [0]),
+                        io:fwrite("The CAA:~n~p~n", [CAA]),
                         file:write_file("automata.txt", lists:flatten(io_lib:format("~p", [CAA]))),
                         visualisation:graph(CAA)
                 end
