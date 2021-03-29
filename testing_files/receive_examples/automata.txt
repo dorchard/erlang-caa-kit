@@ -1,0 +1,6 @@
+{0,
+ [{0,{send,{var,9,'S'},{var,9,'Z'}},1},
+  {1,{recv,[{tuple,11,[{atom,11,hello},{var,11,'C'}]}]},3},
+  {3,{send,{var,11,'C'},{string,11,"hi"}},2},
+  {1,{recv,[{tuple,12,[{atom,12,bye},{var,12,'C'}]}]},5},
+  {5,{send,{var,12,'C'},{string,12,"Gn"}},2}]}

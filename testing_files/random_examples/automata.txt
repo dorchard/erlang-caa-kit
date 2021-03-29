@@ -1,0 +1,4 @@
+{0,
+ [{0,{recv,[{tuple,7,[{atom,7,get},{var,7,'P'}]}]},2},
+  {2,{send,{var,7,'P'},{var,7,'S'}},0},
+  {0,{recv,[{tuple,8,[{atom,8,put},{var,8,'X'}]}]},0}]}

@@ -1,0 +1,23 @@
+digraph Communicating_Actor_Automata {
+
+            rankdir=LR;
+   size="100, 50"
+  node [shape = doublecircle]; 
+
+            node [shape = point]; START;
+   node [shape = circle];
+   START->0;
+
+            
+0 -> 1 [ label = "Z!S"];
+1 -> 2 [ label = "Z!S + 1"];
+2 -> 4 [ label = "?{get, P}"];
+4 -> 3 [ label = "P!S"];
+2 -> 0 [ label = "?{put, X}"];
+3 -> 5 [ label = "Z!S + 2"];
+5 -> 7 [ label = "?{get, D}"];
+7 -> 6 [ label = "D!S"];
+5 -> 9 [ label = "?W"];
+9 -> 6 [ label = "W!S"];
+6 -> 0 [ label = "Z!S + 6"];
+}

@@ -1,0 +1,12 @@
+{0,
+ [{0,{send,{var,7,'S'},{var,7,'Z'}},1},
+  {1,{recv,[{tuple,17,[{atom,17,get},{var,17,'P'}]}]},3},
+  {3,{send,{var,17,'P'},{var,17,'Z'}},2},
+  {1,{recv,[{tuple,18,[{string,18,"hi"},{var,18,'P'}]}]},5},
+  {5,{send,{var,18,'P'},{string,18,"hello"}},2},
+  {2,{send,{var,20,'S'},{var,20,'Z'}},6},
+  {6,{recv,[{atom,10,x}]},8},
+  {8,{send,{var,10,'S'},{atom,10,x}},7},
+  {6,{recv,[{atom,11,y}]},10},
+  {10,{send,{var,11,'S'},{atom,11,y}},7},
+  {7,{send,{var,13,'S'},{var,13,'Z'}},11}]}

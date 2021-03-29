@@ -1,10 +1,11 @@
 -module(clause).
--xompile(export_all).
+-compile(export_all).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 c(recv,S,Z) ->
     receive
-        {get, P} -> P!S, c(send, S,Z);
+        {get, P} -> P!S, Z!S;
         {put, X} -> c(recv, X,Z)
 end;
 c(send, S,Z) ->
@@ -65,4 +66,34 @@ c4(X, S, Z) ->
     Z!S,
     c4(X, S, Z).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+
+c5(recv,S,Z) ->
+    receive
+        {get, P} -> P!S, c5(recv, S,Z);
+        {put, X} -> c5(recv, X,Z)
+end;
+c5(send, S,Z) ->
+    Z!S;
+c5(X, S, Z) ->
+    X!S,
+    Z!S.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+c6(recv,S,Z) ->
+    receive
+        {get, P} -> X = 1 + 2;
+        {put, X} -> c6(recv, X,Z)
+end;
+c6(send, S,Z) ->
+    X = 1 + 2;
+c6(X, S, Z) ->
+    X!S,
+    Z!S.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

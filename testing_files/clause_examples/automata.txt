@@ -1,0 +1,10 @@
+{0,
+ [{0,unlabelled,2},
+  {2,{recv,[{tuple,8,[{atom,8,get},{var,8,'P'}]}]},4},
+  {4,{send,{var,8,'P'},{var,8,'S'}},0},
+  {2,{recv,[{tuple,9,[{atom,9,put},{var,9,'X'}]}]},0},
+  {0,unlabelled,5},
+  {5,{send,{var,12,'Z'},{var,12,'S'}},1},
+  {0,unlabelled,6},
+  {6,{send,{var,14,'X'},{var,14,'S'}},7},
+  {7,{send,{var,15,'Z'},{var,15,'S'}},1}]}

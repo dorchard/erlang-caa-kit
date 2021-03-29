@@ -1,17 +1,18 @@
 -module(function).
 -compile(export_all).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% For Function expression i.e. call to another function
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  Function expression i.e. call to another function
+
 f(S, Z) ->
     S!Z,
-    f1(S,Z),
+    f_call(S,Z),
     receive
         x -> S!x;
         y -> S!y
     end,
     S!Z.
 
-f1(S, Z) ->
+f_call(S, Z) ->
     receive
         {get, P} -> P!Z;
         {"hi", P} -> P!"hello"
@@ -19,58 +20,58 @@ f1(S, Z) ->
     S!Z.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-f2(S, Z) ->
+f1(S, Z) ->
     S!Z,
     receive
         x -> S!x;
         y -> S!y
     end,
-    f1(S,Z),
+    f_call(S,Z),
     S!Z.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-f3(S, Z) ->
+f2(S, Z) ->
     S!Z,
-    f4(Z),
+    f1_call(Z),
     receive
         {get, P} -> P!Z;
         {"hi", P} -> P!"hello"
     end,
     S!Z.
 
-f4(Z) ->
+f1_call(Z) ->
     receive
         {get, P} -> P!Z;
         {"hi", P} -> P!"hello"
     end.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-f5(S, Z) -> 
-    f4(Z),
-    f4(Z).
+f3(S, Z) -> 
+    f1_call(Z),
+    f1_call(Z).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-f6(S, Z) ->
-    f4(Z),
-    f7(Z, S).
+f4(S, Z) ->
+    f1_call(Z),
+    f2_call(Z, S).
 
-f7(S, Z) -> 
-    f4(Z),
-    f7(S, Z).
+f2_call(S, Z) -> 
+    f1_call(Z),
+    f2_call(S, Z).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-f8(S, Z) -> 
-    f4(Z),
-    f9(S, Z).
+f5(S, Z) -> 
+    f1_call(Z),
+    f3_call(S, Z).
 
-f9(S, Z) ->
-    f4(Z),
-    f8(S, Z).
+f3_call(S, Z) ->
+    f1_call(Z),
+    f5(S, Z).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-f10(S, Z) ->
-    f4(Z),
+f6(S, Z) ->
+    f1_call(Z),
     c(recv, S, Z),
-    f4(Z).
+    f1_call(Z).
 
 c(recv,S,Z) ->
     receive
@@ -83,12 +84,12 @@ c(X, S, Z) ->
     X!S,
     Z!S.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 
-f11(S, Z) ->
-    f4(Z),
-    c1(recv, S, Z),
-    f4(Z).
+f7(S, Z) ->
+    f1_call(Z),
+    c1(recv, S, Z), 
+    f1_call(Z).
 
 c1(recv,S,Z) ->
     receive
@@ -103,10 +104,10 @@ c1(X, S, Z) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-f12(S, Z) ->
-    f4(Z),
+f8(S, Z) ->
+    f1_call(Z),
     c2(recv, S, Z),
-    f4(Z).
+    f1_call(Z).
 
 c2(recv,S,Z) ->
     receive
@@ -118,4 +119,45 @@ c2(send, S,Z) ->
 c2(X, S, Z) ->
     X!S,
     Z!S, c2(send, S,Z).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+f9(S, Z) ->
+    f1_call(Z),
+    c3(recv, S, Z),
+    f1_call(Z).
+
+c3(recv,S,Z) ->
+    receive
+            {get, P} -> P!S;
+            {"hello", P} -> P!"hi"
+    end;
+c3(send, S,Z) ->
+    Z!S;
+c3(X, S, Z) ->
+    X!S,
+    Z!S.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+f10(S, Z) ->
+    f1_call(Z),
+    c4(recv, S, Z),
+    f1_call(Z).
+
+c4(recv,S,Z) ->
+    receive
+            {get, P} -> P!S;
+            {"hello", P} -> P!"hi"
+    end;
+c4(send, S,Z) ->
+    Z!S;
+c4(X, S, Z) ->
+    X!S,
+    Z!S,
+    c4(X, S, Z).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 

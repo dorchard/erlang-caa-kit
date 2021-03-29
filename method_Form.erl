@@ -13,8 +13,6 @@
 -type method() :: atom().
     % Method name 
 
--type numArgu() :: integer().
-    % Arity of the given method
 
 -type parents() :: [methodTerm()].
     % list containing methodTerm of current method
@@ -28,8 +26,8 @@
     % And it's because it will help in detecting recursion (line 99).
 
 -type methodTerm() :: string().
-    % "method() ++ "->" ++ numArgu()"
-    % where method() and numArgu()
+    % "method() ++ "->" ++ arity()"
+    % where method() and arity()
     % are of type string().
 
 -type caa_methodForm() :: caa_methodForm.
@@ -66,7 +64,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec getMethod(form(), method(), numArgu(), form(), parents()) ->  error 
+-spec getMethod(form(), method(), arity(), form(), parents()) ->  error 
                                                                 |   caa_methodForm().
 
 getMethod([], _, _, _, _) ->
@@ -93,6 +91,7 @@ getMethod_Clause([{_, Anno, Aritity, _, Body}|Xs], Parents, Form) ->
 
 getMethod_CallCheck([], _, _, New_Body) ->
     New_Body;
+
 % for call expression
 getMethod_CallCheck([{call, Anno1, {Var, Anno2, Call_To}, Arity}|Xs], Parents, Form, New_Body) ->
     Call_Method = atom_to_list(Call_To) ++ "->" ++ integer_to_list(length(Arity)),
@@ -105,9 +104,15 @@ getMethod_CallCheck([{call, Anno1, {Var, Anno2, Call_To}, Arity}|Xs], Parents, F
         % otherwise just add the call expression to New_Body 
         _       -> getMethod_CallCheck(Xs, Parents, Form, [{call, Anno1, {Var, Anno2, Call_To}, Arity, Call_Method}|New_Body])
 end;
+
 % for receive expression
 getMethod_CallCheck([{'receive', Anno, Clauses}|Xs], Parents, Form, New_Body) ->
     getMethod_CallCheck(Xs, Parents, Form, [{'receive', Anno, getMethod_ReceiveBlock(Clauses, Parents, Form)}|New_Body]);
+
+% case expression
+getMethod_CallCheck([{'case', Anno, Of, Clauses}|Xs], Parents, Form, New_Body) ->
+    getMethod_CallCheck(Xs, Parents, Form, [{'case', Anno, Of, getMethod_ReceiveBlock(Clauses, Parents, Form)}|New_Body]);
+
 getMethod_CallCheck([X|Xs], Parents, Form, New_Body) ->
     getMethod_CallCheck(Xs, Parents, Form, [X|New_Body]).
 

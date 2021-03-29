@@ -1,0 +1,18 @@
+digraph Communicating_Actor_Automata {
+
+            rankdir=LR;
+   size="100, 50"
+  node [shape = doublecircle]; 
+
+            node [shape = point]; START;
+   node [shape = circle];
+   START->0;
+
+            
+0 -> 1 [ label = "S!Z"];
+1 -> 3 [ label = "?{hello, C}"];
+3 -> 0 [ label = "C!\"hi\""];
+1 -> 5 [ label = "?{bye, C}"];
+5 -> 6 [ label = "C!\"Gn\""];
+6 -> 0 [ label = "C!\"sleep\""];
+}

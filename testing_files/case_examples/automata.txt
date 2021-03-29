@@ -1,0 +1,5 @@
+{0,
+ [{0,{recv,[{tuple,8,[{atom,8,msg},{var,8,'X'}]}]},2},
+  {2,unlabelled,2},
+  {2,unlabelled,2},
+  {0,{recv,[{atom,14,stop}]},1}]}

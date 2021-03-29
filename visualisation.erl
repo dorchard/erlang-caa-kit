@@ -1,40 +1,11 @@
 -module(visualisation).
--export([graph/1]).
+-export([graph/2]).
 
--type caa() :: {start_State(), delta()}.
+-type caa() :: caa:caa().
     % Communicating Actor Automata specifies
     % a tuple representation of Actor-based
     % model erlang code. The tuple contains
     % a staring state and it's delta.
-
--type start_State() :: integer().
-    % start_State() represents the initial
-    % state of the caa().
-
--type delta() :: [transition()].
-    % delat() contains list of transitions
-    % which represents the transition 
-    % relations.
-
--type transition() :: {state(), label(), state()}.
-    % transition represents a tuple containing
-    % 3 elements, where the 1st element represents 
-    % the start state() of the transtion, the 2nd 
-    % element represents the label() and the 3rd 
-    % element represents the next state after the
-    % transition.
-
--type state() ::    integer()
-               |    string().
-    % state() represents the state which we at
-    % during a transtion.
-
--type label() ::    {send, erl_parse:abstract_expr(), erl_parse:abstract_expr()}
-                |   {recv, erl_parse:abstract_expr()}
-                |   unlabelled
-                |   undefined.
-    % label() specifies the communication/label
-    % over which the transition is happening.
 
 -type os_type() :: os:type().
     % Returns the Osfamily and, in some cases, the
@@ -44,24 +15,28 @@
     % graph() represents the caa()'s transitions/delta()
     % in form of grapgviz's (dot) transitions
 
--type state_ordsets() :: [state()].
+-type state_ordsets() :: [caa:state()].
     % state_ordsets() represents a set containing states().
     % It is used for containing all the from/start state of 
     % transitions and for contining all the next/to state of
     % those transitions (separately).
 
 -type end_state() ::    []
-                    |   [state()].
+                    |   [caa:state()].
     % end_state() represents the end state of the caa(). If
     % end start not exist then []. 
-     
+    
+-type delta() :: caa:delat().
+
+-type transition() :: caa:transition().
+
 -type prettyPrint_transition() :: string().
     % prettyPrint_transition() return the pretty print
     % transition version of caa() format transition()
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec graph(caa()) -> done.
+-spec graph(caa(),string()) -> caa().
     % the graph() method is responsible of:
     % 1) Converting the caa() into graphviz .dot
     %   format.
@@ -74,8 +49,8 @@
     %   a pdf file called CAA.pdf out of it,
     %   which represents the graph representation of
     %   the caa(). 
-    % 5) And at the end the graph method opens the 
-    %   CAA.pdf file for you.
+    % 5) opens the CAA.pdf file
+    % 6) standard ouputs the CAA model.
     % 
     % Note: there can be a case where the method is
     % able to create a graph.dot file, but unable to
@@ -94,23 +69,26 @@
     % on the same repository and then you can 
     % open it.
 
-graph({Start_State, [{From, Label, To}|Xs]}) ->
+
+graph({Start_State, Delta}, Loc) ->
     % create graph
-    {Graph, End_State} = createGraph([{From, Label, To}|Xs], "", ordsets:new(), ordsets:new()),
+    {Graph, End_State} = createGraph(Delta, "", ordsets:new(), ordsets:new()),
     CAA = io_lib:format("digraph Communicating_Actor_Automata {~n
             rankdir=LR;~n   size=\"100, 50\"~n  node [shape = doublecircle]; ~s~n
             node [shape = point]; START;~n   node [shape = circle];~n   START->~p;~n
             ~s~n}", [lists:concat(End_State), Start_State, Graph]),
     % create .dot file with Graph inside
-    file:write_file("graph.dot", CAA),
+    Graph_loc = lists:flatten(io_lib:format("~sgraph.dot", [Loc])),
+    file:write_file(Graph_loc, CAA),
     % installs Graphviz
-    installGraphviz(os:type()),
-    io:fwrite("For more information regrading Grapghviz, please visit their website: http://www.graphviz.org/download/ ~n"),
+    % installGraphviz(os:type()), %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% uncomment this later
+    % io:fwrite("For more information regrading Grapghviz, please visit their website: http://www.graphviz.org/download/ ~n"),
     % compiles the .dot file and create a visual graph in pdf
-    os:cmd("dot -Tpdf graph.dot > CAA.pdf"),
+    Dot_command = lists:flatten(io_lib:format("dot -Tpdf ~sgraph.dot > ~sCAA.pdf", [Loc, Loc])), 
+    os:cmd(Dot_command),
     % opens the file
-    os:cmd("CAA.pdf"),
-    done.
+    PDF = lists:flatten(io_lib:format("~sCAA.pdf", [Loc])), 
+    os:cmd(PDF).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -154,4 +132,7 @@ prettyPrint({send, P_id, Data}) ->
     lists:flatten(io_lib:format("~s!~s", [erl_prettypr:format(P_id), erl_prettypr:format(Data)]));
 % for receive transition
 prettyPrint({recv, [Label]}) ->
-    lists:flatten(io_lib:format("?~s", [erl_prettypr:format(Label)])).
+    lists:flatten(io_lib:format("?~s", [erl_prettypr:format(Label)]));
+% for unlabelled
+prettyPrint(X) ->
+    atom_to_list(X).
