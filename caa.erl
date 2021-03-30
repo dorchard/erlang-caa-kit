@@ -130,11 +130,6 @@
    % length_Clauses() tells the number of clauses a method have. It's main
    % application is in figuring out if all the clauses inside a method had recursion.
 
--type clausesPre_assumedState() :: state().
-   % similar to pre_assumedState(), but clausesPre_assumedState() tells the 
-   % end state of all the clauses a method have if there are multiple clauses
-   % inside that method.
-
 -type expressions() :: method_Form:caa_clauseBody().
 
 -type delta_Info() :: {delta(), last_Transition_State(), transition_States(), noRecursion()}.
@@ -156,6 +151,15 @@
 -type recursionToMethod_State() :: state().
     % recursionToMethod_State() reprent the starting state of the recursive method.
 
+-type empty_Xs() :: boolean().
+    % empty_Xs() tells if expressions() is empty or not after the current send expression.
+    % It is used detecting what should be the transition state or pre-assumed state 
+
+
+-type exist_PreAssumedState() :: boolean().
+    % exist_PreAssumedState() tells if the is pre-assumed state set or not.
+    % i.e. -1 means it's not set and any arbitrary number > 0 means it has been set 
+    % by a parent method or a receive or clause expression.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -199,7 +203,8 @@ main(Filename, Function, Location) ->
                                         #{}, % #{} is methodState_Map()
                                         0, % last_Transition_State()
                                         -1, %  pre_assumedState()
-                                        [0]), % transition_States()
+                                        [0], % transition_States()
+                                        []), % delta()
                     
                     % creates the automata.txt file in the given location()
                     Automata = lists:flatten(io_lib:format("~sautomata.txt", [Location])),
@@ -234,39 +239,37 @@ end.
 
 
 -spec caa(method_Form(), methodState_Map(), last_Transition_State(), pre_assumedState(), 
-          transition_States()) -> caa_Info().
-      % caa/5 takes the method-form of the given file, map of type methodState_Map(), the 
-      % last transition state so far, the pre-assumed state and list of transition states;
-      % and return a tuple which contain the CAA model, last transition state of the CAA
-      % model, list of all the transition states so far, boolean telling "no recursion" or 
-      % not. 
+          transition_States(), delta()) -> caa_Info().
+    % caa/6 takes the method-form of the given file, map of type methodState_Map(), the 
+    % last transition state so far, the pre-assumed state and list of transition states
+    % and delta; and return a tuple which contain the CAA model, last transition state of the CAA
+    % model, list of all the transition states so far, boolean telling "no recursion" or 
+    % not. 
 
 caa({_, _, _, _, Clauses, Method_Term}, MethodState_Map, Last_Transition_State, Pre_assumedState,
-  Transition_States) ->
+  Transition_States, Delta) ->
     clause(Clauses, % clauses inside the method_form(): clauses()
       length(Clauses) > 1, % many_clauses()
       false, % false because we are going to start from the very 1st clause: is_Nth_clause()
       maps:merge(MethodState_Map, #{Method_Term => Last_Transition_State}),% methodState_Map()
       0, % lastClause_max_State()
       -1, % becase we're going to start from the very 1st clause: lastClause_Last_Transition_State()
-      [], % delta() 
+      Delta, % delta() 
       Last_Transition_State, % the last transition so far: parent_Last_Transition_State()
       Pre_assumedState, % pre_assumedState() of the parent method because this can a be child method
       Transition_States, % transition_States()
-      length(Clauses), % to check later if all the clauses had recusrion: length_Clauses()
-      -1). % -1 because there is no pre-assumed state for clauses at this moment, because we
-           % don't know if there are many clauses or not : pre_assumedState() for this method 
+      length(Clauses)). % to check later if all the clauses had recusrion: length_Clauses()
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 -spec clause(clauses(), many_clauses(), is_Nth_clause(), methodState_Map(), lastClause_max_State(),
         lastClause_Last_Transition_State(), delta(), parent_Last_Transition_State(), 
-        pre_assumedState(), transition_States(), length_Clauses(), clausesPre_assumedState()) ->
+        pre_assumedState(), transition_States(), length_Clauses()) ->
             caa_Info().
-    % clause/13 deals with the clauses of a method i.e, traversing via the clauses 
+    % clause/11 deals with the clauses of a method i.e, traversing via the clauses 
     % and assigning them their start state and replacing the last transition state 
-    % (if no recursion) of a clause delta with clausesPre_assumedState(). And it passes 
+    % (if no recursion) of a clause delta with pre_assumedState(). And it passes 
     % the clause body of a particular clause to the expressions/6 which deals with the 
     % delta of a clause. After traversing via all the clauses of a method, clause/13
     % return a tuple which contains the CAA model of that method and some addition 
@@ -276,7 +279,7 @@ caa({_, _, _, _, Clauses, Method_Term}, MethodState_Map, Last_Transition_State, 
 % After traversing via all the clauses,
 % all the clauses had recursion. i.e.,
 % length_Clauses() == 0  (11th parameter of this method)
-clause([], _, _, _, _, _, Delta, Parent_Last_Transition_State, _, Transition_States, 0, _) ->
+clause([], _, _, _, _, _, Delta, Parent_Last_Transition_State, _, Transition_States, 0) ->
     {{Parent_Last_Transition_State, Delta}, % the CAA model
      -1, % -1 because no point of clause-last transition state
      Transition_States,
@@ -288,12 +291,12 @@ clause([], _, _, _, _, _, Delta, Parent_Last_Transition_State, _, Transition_Sta
 
 % After traversing via all the clauses,
 % not all the clauses or no clauses had recursion in them
-clause([], _, _, _, _, LastClause_Last_Transition_State, Delta, Parent_Last_Transition_State, _,
-  Transition_States, _, _) ->
-    % we pass the LastClause_Last_Transition_State as the last transition state because 
+clause([], _, _, _, _, _, Delta, Parent_Last_Transition_State, 
+  Pre_assumedState, Transition_States, _) ->
+    % we pass the Pre_assumedState as the last transition state because 
     % all the clauses which didn't had recursion had this state as their last state         
     {{Parent_Last_Transition_State, Delta},
-     LastClause_Last_Transition_State, % can be changed with Clause_Transition_States
+     Pre_assumedState, 
      Transition_States,
      true};
 
@@ -302,15 +305,15 @@ clause([], _, _, _, _, LastClause_Last_Transition_State, Delta, Parent_Last_Tran
 
          
 % when there is only one clause in the method
-clause([{_,_,_,_,Clause_Body}], false, false, MethodState_Map, _, _, _, 
-  Parent_Last_Transition_State, Pre_assumedState, Transition_States, Length_Clauses, _) ->
+clause([{_,_,_,_,Clause_Body}], false, false, MethodState_Map, _, _, Delta, 
+  Parent_Last_Transition_State, Pre_assumedState, Transition_States, Length_Clauses) ->
     % passes the Clause_Body to expressions/6 and gets
     % this clause Delat with other important information about
     % the delta
-    {Delta, Clause_Last_Transition_State, Clause_Transition_States, NoRecursion} = 
+    {Clause_Delta, Clause_Last_Transition_State, Clause_Transition_States, NoRecursion} = 
         expressions(Clause_Body, % expressions()
          MethodState_Map, % methodState_Map()
-         [], % delta()
+         Delta, % delta()
          Parent_Last_Transition_State, % last_Transition_State()
          Pre_assumedState, % pre_assumedState()
          Transition_States), % transition_States()
@@ -318,20 +321,22 @@ clause([{_,_,_,_,Clause_Body}], false, false, MethodState_Map, _, _, _,
     % go to the base case with the delta
     % Here -1 represent the paramaters we don't
     % care about in the base cases.
+    % And we are passing,
+    % Clause_Last_Transition_State as clausesPre_assumedState()
+    % because this is the last transition state and there is no
+    % clause left as there was only 1 clause in this method
     % Note:  noRecursion/2 reduce length_Clauses() by 1 if there was 
     % recurion inside this clause
     clause([], % clauses(), [] because there was only one clause in this method
      -1, -1, %  many_clauses() and is_Nth_clause()
      MethodState_Map, % methodState_Map()
      -1, % lastClause_max_State()
-     Clause_Last_Transition_State, Delta, % lastClause_Last_Transition_State() and delta(),
+     Clause_Last_Transition_State, Clause_Delta, % lastClause_Last_Transition_State() and delta(),
      Parent_Last_Transition_State, % parent_Last_Transition_State()
-     Pre_assumedState, % pre_assumedState()
+     Clause_Last_Transition_State, % pre_assumedState()
      Clause_Transition_States, %  transition_States()
-     noRecursion(NoRecursion, Length_Clauses), % length_Clauses(),
-     Clause_Last_Transition_State); % Clause_Last_Transition_State as clausesPre_assumedState()
-                                    % because this is the last transition state and there is no
-                                    % clause left as there was only 1 clause in this method
+     noRecursion(NoRecursion, Length_Clauses)); % length_Clauses(),
+    
 
 
 %%%%% end of clause %%%%%
@@ -342,114 +347,58 @@ clause([{_,_,_,_,Clause_Body}], false, false, MethodState_Map, _, _, _,
 % many_clauses() == true and 
 % is_Nth_clause() == false (where N > 1)
 %  (parameter 2 and 3 respectively)
-clause([{_,_,_,_,Clause_Body}|Xs], true, false, MethodState_Map, _, _, _, 
-  Parent_Last_Transition_State, Pre_assumedState, Transition_States, Length_Clauses, _) ->
+clause([{_,_,_,_,Clause_Body}|Xs], true, false, MethodState_Map, _, _, Delta, 
+  Parent_Last_Transition_State, ThePre_assumedState, Transition_States, Length_Clauses) ->
     % gets the so far Max transition/CAA state as this method can be a child-method 
     % i.e., call from a parent method  
     MAX_CAA_State = lists:max(Transition_States),
-    % setting pre-assumed state for clauses
-    case Pre_assumedState =/= -1 of
-      % i.e. when this is a method call, from inside a recieve block
-      true -> 
-        Clause_Last_Transition_State = Pre_assumedState,
-          
-        % delta_info()
-        % get the delta for this clause with some addition information about the delta
-        {Delta, _, Clause_Transition_States, NoRecursion} = 
-          % we are passing "MAX_CAA_State+2" in place of last_Transition_State() because 
-          % "MAX_CAA_State+2" is the unlabelled transition for this clause and that why 
-          % we are adding it to the Tranition_States list transition_States()
-            expressions(Clause_Body, % expressions()
-              MethodState_Map, % methodState_Map()
-              [], % delta()
-              MAX_CAA_State+2, % last_Transition_State() 
-              Pre_assumedState, % pre_assumedState()
-              [MAX_CAA_State+2] ++ Transition_States); % transition_States()
-      
-      % otherwise we can pass the "clause ending pre_assumed state" in the place of 
-      % Pre_assumedState (because Pre_assumedState is -1 anyways), so that it will do the 
-      % changing of states for us inside the receive clause. 
-      _   ->  
-        Clause_Last_Transition_State = MAX_CAA_State+1,
-          
-        % delta_info()
-        % get the delta for this clause with some addition information about the delta  
-        {Delta, _, Clause_Transition_States, NoRecursion} = 
-          % we pass "MAX_CAA_State+1" in the place of pre_assumedState() because "MAX_CAA_State+1"
-          % is this method's clauses pre-assumed state for any receive expression inside it
-            expressions(
-              Clause_Body, % expressions()
-              MethodState_Map, % methodState_Map()
-              [], % delta()
-              MAX_CAA_State+2, % last_Transition_State()
-              MAX_CAA_State+1, % pre_assumedState()
-              [MAX_CAA_State+2] ++ Transition_States) % transition_States()
-    end,
+    % get te right pre-assumed State
+    Pre_assumedState = 
+      getPre_assumedState(true, % empty_Xs() : it's need to be true for this case to work
+        ThePre_assumedState =/= -1, % exist_PreAssuedState()
+        ThePre_assumedState, % pre_assumedState()
+        MAX_CAA_State+1), % pre_assumedState()
 
-    % when there is just recursion inside the delta.
-    % "andalso NoRecursion == true" is for not to 
-    % get confused with when there is no communication 
-    % and because of just delta is empty.
-    case Delta == [] andalso NoRecursion == false of
-        % When there is transitions inside the delta
-        false ->
-            % add unlabelled transition to the delta
-            Unlabelled_Delta = 
-                addTransition(Delta, % delta()
-                  Parent_Last_Transition_State, % transition_from()
-                  MAX_CAA_State+1, % max_State(), we assume MAX_CAA_State+1 is the pre-assumed state
-                  unlabelled), % label()
-           
-            % changes the last trasition state to the pre-assumed state of the clauses.
-            {Changed_Delta, Changed_Transition_States, Changed_Last_Transition_State} =
-                clause_changeTransitionsStates(lists:reverse(Unlabelled_Delta), % delta()
-                  Pre_assumedState, % pre_assumedState()
-                  MAX_CAA_State+1, % clausesPre_assumedState()
-                  MethodState_Map, % methodState_Map()
-                  Clause_Transition_States, % transition_States()
-                  NoRecursion), % noRecursion()
+    % delta_info()
+    % get the delta for this clause with some addition information about the delta
+    {Clause_Delta, Clause_Last_Transition_State, Clause_Transition_States, NoRecursion} = 
+    % we are passing "MAX_CAA_State+2" in place of last_Transition_State() because 
+    % "MAX_CAA_State+2" is the unlabelled transition for this clause and that why 
+    % we are adding it to the Tranition_States list transition_States()
+      expressions(Clause_Body, % expressions()
+        MethodState_Map, % methodState_Map()
+        % delta() : adding unlabelled transition to the delta
+        addTransition(Delta, % delta()
+          Parent_Last_Transition_State, % transition_from()
+          MAX_CAA_State+1, % pre-assumed state
+          unlabelled),
+        MAX_CAA_State+2, % last_Transition_State() 
+        Pre_assumedState, % pre_assumedState()
+        [MAX_CAA_State+2] ++ Transition_States), % transition_States()
+    io:fwrite("Clause_Last_Transition_State ~p~n", [Clause_Last_Transition_State]),
+    
+    % check if the last transition is only a unlabelled transition
+    {Check_Delta, Check_Last_Transition_State, Check_Transition_States} = 
+      check_UnlabelRecv(unlabelled,
+        Clause_Delta,
+        Pre_assumedState, 
+        NoRecursion, 
+        Clause_Last_Transition_State,
+        Clause_Transition_States),
 
-            % traverse over other clauses
-            % is_Nth_clause() is true because next clause is going to be the 2nd clause 
-            clause(Xs, % clauses()
-              true, % many_clauses()
-              true, % is_Nth_clause()
-              MethodState_Map, % methodState_Map()
-              lists:max(Changed_Transition_States), % lastClause_max_State()
-              Changed_Last_Transition_State, % lastClause_Last_Transition_State()
-              Changed_Delta, % delta()
-              Parent_Last_Transition_State, % parent_Last_Transition_State()
-              Pre_assumedState, % pre_assumedState()
-              Changed_Transition_States, % transition_States()
-              noRecursion(NoRecursion, Length_Clauses), % length_Clauses()
-              MAX_CAA_State+1); % clausesPre_assumedState() 
-
-        % when there was just a recursive call inside this clause i.e., no there no transition
-         _ -> 
-            % we are passing "MAX_CAA_State+1" in place of lastClause_max_State() because 
-            % "MAX_CAA_State+1"  is the pre-assumed state of the clauses and there was no
-            % transition.
-            %  lastClause_Last_Transition_State() is -1 because there was no transition
-            clause(Xs, % clauses()
-              true, % many_clauses()
-              true, % is_Nth_clause()
-              MethodState_Map, % methodState_Map()
-              MAX_CAA_State+1, % lastClause_max_State() 
-              -1, % lastClause_Last_Transition_State(),
-              % delta() : adding unlabelled transition to delta 
-                % max_State() = Parent_Last_Transition_State-1  because we want to show an
-                % unlabelled transition from parent_Last_Transition_State() to 
-                % parent_Last_Transition_State() 
-              addTransition(Delta, % delta()
-                Parent_Last_Transition_State, % transition_from()
-                Parent_Last_Transition_State-1, % max_State()
-                unlabelled), % label
-              Parent_Last_Transition_State, % parent_Last_Transition_State()
-              Pre_assumedState, % pre_assumedState()
-              Transition_States, % transition_States()
-              Length_Clauses-1, % length_Clauses() : since we know there was recursion
-              MAX_CAA_State+1) % clausesPre_assumedState()
-end;
+    % traverse over other clauses
+    % is_Nth_clause() is true because next clause is going to be the 2nd clause 
+    clause(Xs, % clauses()
+      true, % many_clauses()
+      true, % is_Nth_clause()
+      MethodState_Map, % methodState_Map()
+      lists:max(Check_Transition_States), % lastClause_max_State()
+      Check_Last_Transition_State, % lastClause_Last_Transition_State()
+      Check_Delta, % delta()
+      Parent_Last_Transition_State, % parent_Last_Transition_State()
+      Pre_assumedState, % pre_assumedState()
+      Check_Transition_States, % transition_States()
+      noRecursion(NoRecursion, Length_Clauses)); % length_Clauses()        
 
 
 %%%%% end of clause %%%%%
@@ -458,169 +407,46 @@ end;
 % when we are at the Nth clause where N > 1 i.e, is_Nth_clause() == true
 clause([{_,_,_,_,Clause_Body}|Xs], true, true, MethodState_Map, Max_State_lastClause, 
   Clauses_Last_Transition_State, Delta, Parent_Last_Transition_State, Pre_assumedState,
-  Transition_States, Length_Clauses, ClausesPre_assumedState) ->
-    % setting pre-assumed state for clauses
-    case Pre_assumedState =/= -1 of
-     % when there is already a pre-assumed state coming from the parent method
-     true ->
-        % delta_info()
-        % get the delta for this clause with some addition information about the delta
-        {Clause_Delta, _, Clause_Transition_States, NoRecursion} = 
-        % we are passing "MAX_CAA_State+1" in place of last_Transition_State() because 
-        % "MAX_CAA_State+1" is the unlabelled transition for this clause and that why 
-        % we are adding it to the Tranition_States list transition_States()
-            expressions(Clause_Body, % expressions()
-              MethodState_Map, % methodState_Map()
-              [], % delta()
-              Max_State_lastClause+1, % last_Transition_State()
-              Pre_assumedState, % pre_assumedState()
-              [Max_State_lastClause+1|Transition_States]); % transition_States()
-
-      % otherwise we can pass the "clause ending pre_assumed state" in the place of 
-      % Pre_assumedState (because Pre_assumedState is -1 anyways), so that it will do the 
-      % changing of states for us inside the receive clause.
-     _   ->
-        % delta_info()
-        % get the delta for this clause with some addition information about the delta 
-        % we are passing ClausesPre_assumedState in place of pre_assumedState() because it is 
-        % pre-assumed state as Pre_assumedState (parent pre-asssumed state) is -1
-        {Clause_Delta, _, Clause_Transition_States, NoRecursion} = 
-            expressions(Clause_Body, % expressions()
-              MethodState_Map, % methodState_Map()
-              [], % delta
-              Max_State_lastClause+1, % last_Transition_State()
-              ClausesPre_assumedState, % pre_assumedState()
-              [Max_State_lastClause+1|Transition_States]) % transition_States()
-    end,
-
-    case Clause_Delta == [] andalso NoRecursion == false of
-     % When there is transitions inside the delta
-     false ->
-         % add unlabelled transition
-        Unlabelled_Delta = 
-            addTransition(Clause_Delta, % delta()
-              Parent_Last_Transition_State, % transition_from()
-              Max_State_lastClause,  % max_State()
-              unlabelled),  % label()
-
-        % changes the last trasition state to the pre-assumed state of the clauses.
-        {Changed_Delta, Changed_Transition_States, Changed_Last_Transition_State} =
-            clause_changeTransitionsStates(lists:reverse(Unlabelled_Delta), % delta()
-              Pre_assumedState, % pre_assumedState()
-              ClausesPre_assumedState, % clausesPre_assumedState()
-              MethodState_Map, % methodState_Map()
-              Clause_Transition_States, % transition_States()
-              NoRecursion), % noRecursion()
-
-        % traverse over rest of the  clauses
-        clause(Xs, % clauses()
-         true, % many_clauses()
-         true, % is_Nth_clause()
-         MethodState_Map, % methodState_Map()
-         lists:max(Changed_Transition_States), % lastClause_max_State()
-         Changed_Last_Transition_State, % lastClause_Last_Transition_State()
-         Delta ++ Changed_Delta, % delta() : adding this clause delta to the rest.
-         Parent_Last_Transition_State, % parent_Last_Transition_State()
-         Pre_assumedState, % pre_assumedState()
-         Changed_Transition_States, % transition_States()
-         noRecursion(NoRecursion, Length_Clauses), % length_Clauses()
-         ClausesPre_assumedState); % clausesPre_assumedState()
-
-     % when there was just a recursive call inside this clause i.e., there was no transition
-     _ ->  
-         % we are passing Max_State_lastClause and Clauses_Last_Transition_State in place of 
-         % lastClause_max_State() and lastClause_Last_Transition_State() respectively because there
-         % was no transition inside this clause.
-         % for delta() we are adding this clause delta (with unlabelled transition) to the rest.
-        clause(Xs, % clauses()
-         true, % many_clauses()
-         true, % is_Nth_clause()
-         MethodState_Map, % methodState_Map() 
-         Max_State_lastClause, % lastClause_max_State() 
-         Clauses_Last_Transition_State, % lastClause_Last_Transition_State(),
-         % delta()
-         Delta ++ 
-          addTransition(Clause_Delta, % delta()
+  Transition_States, Length_Clauses) ->
+    % delta_info()
+    % get the delta for this clause with some addition information about the delta
+    {Clause_Delta, Clause_Last_Transition_State, Clause_Transition_States, NoRecursion} = 
+    % we are passing "Max_State_lastClause+1" in place of last_Transition_State() because 
+    % "Max_State_lastClause+1" is the unlabelled transition for this clause and that why 
+    % we are adding it to the Tranition_States list transition_States()
+        expressions(Clause_Body, % expressions()
+          MethodState_Map, % methodState_Map()
+          % delta() : add unlabelled transition
+          addTransition(Delta, % delta()
             Parent_Last_Transition_State, % transition_from()
-            Parent_Last_Transition_State-1, % max_State()
-            unlabelled), % label
-         Parent_Last_Transition_State, % parent_Last_Transition_State()
-         Pre_assumedState, % pre_assumedState()
-         Transition_States, % transition_States()
-         Length_Clauses-1, % length_Clauses() : since we know there was recursion
-         ClausesPre_assumedState)  % clausesPre_assumedState()
-end.
+            Max_State_lastClause,  % max_State()
+            unlabelled), % label()
+          Max_State_lastClause+1, % last_Transition_State()
+          Pre_assumedState, % pre_assumedState()
+          [Max_State_lastClause+1|Transition_States]), % transition_States()
+    
+    % check if the last transition is only a unlabelled transition
+    {Check_Delta, Check_Last_Transition_State, Check_Transition_States} = 
+      check_UnlabelRecv(unlabelled,
+        Clause_Delta,
+        Pre_assumedState, 
+        NoRecursion, 
+        Clause_Last_Transition_State,
+        Clause_Transition_States),
+    
+    % traverse over rest of the  clauses
+    clause(Xs, % clauses()
+      true, % many_clauses()
+      true, % is_Nth_clause()
+      MethodState_Map, % methodState_Map()
+      lists:max(Check_Transition_States), % lastClause_max_State()
+      Check_Last_Transition_State, % lastClause_Last_Transition_State()
+      Check_Delta, % delta() : adding this clause delta to the rest.
+      Parent_Last_Transition_State, % parent_Last_Transition_State()
+      Pre_assumedState, % pre_assumedState()
+      Check_Transition_States, % transition_States()
+      noRecursion(NoRecursion, Length_Clauses)). % length_Clauses()
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
--spec clause_changeTransitionsStates(delta(), pre_assumedState(), clausesPre_assumedState(),
-        methodState_Map(), transition_States(), noRecursion()) -> 
-            {delta(), transition_States(), pre_assumedState()}.
-    % changes the last transition state of the clause to the clauses pre-assumed state
-
-
-% when there was no communication inside the delta ot method
-clause_changeTransitionsStates([], Parent_Pre_assumedState, _, _, Transition_States, _) ->
-    {[], Transition_States, Parent_Pre_assumedState};
-
-
-%%%%% end of clause %%%%%
-
-
-% The 2 clauses blow cover: when the last expression of this clause is a receive expression, then
-% we don't have to do anything because we have already dealth with this case by now
-
-% when the last transition happened over a recevie expression and its last state is this 
-% clause/method parent method pre-assumed state.
-clause_changeTransitionsStates([{First_State, Label, Parent_Pre_assumedState}|Xs],
-  Parent_Pre_assumedState, _, _, Transition_States, _) ->
-    {[{First_State, Label, Parent_Pre_assumedState}|Xs], Transition_States, 
-     Parent_Pre_assumedState};
-
-
-%%%%% end of clause %%%%%
-
-
-% when the last transition happened over a recevie expression and its last state is this
-% clause/method pre-assumed state.
-clause_changeTransitionsStates([{First_State, Label, ClausesPre_assumedState}|Xs], _,
-  ClausesPre_assumedState, _, Transition_States, _) ->
-    {[{First_State, Label, ClausesPre_assumedState}|Xs], Transition_States, 
-     ClausesPre_assumedState};
-
-
-%%%%% end of clause %%%%%
-
-
-% when there recursion in all the clauses but the recusrion call was local this case cover
-% something similar to the method c1/1 in case_of.erl 
-% i.e., noRecursion() == false
-clause_changeTransitionsStates([{First_State, Label, Last_State}|Xs], _, ClausesPre_assumedState, _,
-  Transition_States, 
-  false) ->
-    {[{First_State, Label, Last_State}|Xs],
-    Transition_States,
-    ClausesPre_assumedState};
-
-
-%%%%% end of clause %%%%%
-
-
-% when the transition is a send or a recursion
-clause_changeTransitionsStates([{First_State, Label, Last_State}|Xs], _, ClausesPre_assumedState,
-  MethodState_Map, Transition_States, _) ->
-    case lists:member(Last_State, maps:values(MethodState_Map)) of
-     % if the last state is not representing a recursion
-     false ->
-        {[{First_State, Label, ClausesPre_assumedState}|Xs],
-         lists:delete(Last_State, Transition_States), 
-         ClausesPre_assumedState};
-     
-     _ ->
-        {[{First_State, Label, Last_State}|Xs], Transition_States, ClausesPre_assumedState}
-end.  
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -632,6 +458,8 @@ end.
     % other further information about the delta() and returns the delta_Info() for that given 
     % expressions()
 
+
+        
 
 % when we have traversed to the end of the given expressions().  
 expressions([], _, Delta, Last_Transition_State, _, Transition_States) ->
@@ -648,14 +476,21 @@ expressions([{_,_,'!',Process_ID,Data}|Xs], MethodState_Map, Delta, Last_Transit
   Last_Pre_assumedState, Transition_States) ->
     % get max transition state in the delta() so far.
     Max_State = lists:max(Transition_States),
+
+    % adds the send transition the delta
+    {Send_Delta, Send_Last_Transition_State} = 
+    add_SendTransition(Xs == [], % empty_Xs()
+        Last_Pre_assumedState =/= -1, % exist_PreAssumedState()
+        Last_Transition_State, % last_Transition_State()
+        Last_Pre_assumedState, % pre_assumedState()
+        Max_State, % max_State()
+        Delta, % delta()
+        {send, Process_ID, Data}), % label()
+
     expressions(Xs, % expressions()
       MethodState_Map, % methodState_Map()
-      % delta() : adding the send transition to the delta()
-      addTransition(Delta, % delta()
-        Last_Transition_State, % transition_from()
-        Max_State, % max_State()
-        {send, Process_ID, Data}), % label
-      Max_State+1, % last_Transition_State() : Max_State+1 because we did send transition to this
+      Send_Delta, % delta()
+      Send_Last_Transition_State, % last_Transition_State()
       Last_Pre_assumedState, % pre_assumedState()
       [Max_State+1|Transition_States]); % transition_States() : also adding the new transition state 
 
@@ -696,20 +531,12 @@ expressions([{call,_,{_,_,_}, _, Method_Term}|_], MethodState_Map, Delta, Last_T
 expressions([{'receive', _, Body}|Xs], MethodState_Map, Delta, Last_Transition_State, 
   Last_Pre_assumedState, Transition_States) ->
     Max_State = lists:max(Transition_States),
-    case Xs == [] andalso  Last_Pre_assumedState =/= -1 of
-     
-     % when the there is nothing after this receive block
-     % and this is a nested receive block. 
-     % look at example "recv6(S, Z)"  2nd receive nested receive block
-     true -> 
-        Pre_assumedState = Last_Pre_assumedState;
-
-     % when this is either the very first receive block or there are 
-     % other stuff after this receive block. 
-     % look at example "recv(S, Z)" or "recv6(S, Z)" first recive nested receive block
-     _ -> 
-        Pre_assumedState = Max_State + 1   
-    end,
+    % gets the pre_assumed state for this receive expressiom
+    Pre_assumedState = 
+      getPre_assumedState(Xs == [], % empty_Xs()
+        Last_Pre_assumedState =/= -1, % exist_PreAssumedState()
+        Last_Pre_assumedState, % pre_assumedState()
+        Max_State + 1), % the can be pre_assumedState()
 
     % get the new delta which also contain the delta for this receive expression and some further
     % information about it.
@@ -751,29 +578,46 @@ end;
 % when we encounter a function expression i.e., call to another function form inside
 expressions([{function, Anno, Method_Name, Arity, Clauses, Method_Term}|Xs], MethodState_Map, Delta,
   Last_Transition_State,  Last_Pre_assumedState, Transition_States) ->
+    Max_State = lists:max(Transition_States),
+    % gets the pre_assumed state for this receive expressiom
+    Pre_assumedState = 
+      getPre_assumedState(Xs == [], % empty_Xs()
+        Last_Pre_assumedState =/= -1, % exist_PreAssumedState()
+        Last_Pre_assumedState, % pre_assumedState()
+        Max_State + 1), % the can be pre_assumedState()
+
      % calling the caa/5 to deal with this child method as a seprate method and 
      % get its caa_Info()
     case caa({function, Anno, Method_Name, Arity, Clauses, Method_Term}, % method_Form()
            MethodState_Map, % methodState_Map()
            Last_Transition_State, % last_Transition_State()
-           Last_Pre_assumedState, % pre_assumedState()
-           Transition_States) of % transition_States()
+           Pre_assumedState, % pre_assumedState()
+           Transition_States, % transition_States()
+           Delta) of % delta()
 
      % when there was no recursion inside this child method
      % i.e., noRecursion() == true
-     {{_, Func_Delta}, Func_Last_Transition_States, Func_Recv_Transition_States, true} -> 
-         expressions(Xs, % expressions()
-           MethodState_Map, % methodState_Map()
-           lists:reverse(Func_Delta) ++ Delta, % delta()
-           Func_Last_Transition_States, % last_Transition_State()
-           Last_Pre_assumedState, % pre_assumedState()
-           Func_Recv_Transition_States); % transition_States()
+     {{_, Func_Delta}, Func_Last_Transition_State, Func_Recv_Transition_States, true} -> 
+
+        expressions(Xs, % expressions()
+          MethodState_Map, % methodState_Map()
+          Func_Delta, % delta()
+          Func_Last_Transition_State, % last_Transition_State()
+          Last_Pre_assumedState, % pre_assumedState()
+          % transition_States() : adding the pre-assumed state if necessary
+          add_PreAssumedState(Func_Recv_Transition_States, % transition_States()
+           Pre_assumedState, % pre_assumedState()
+           Last_Pre_assumedState)); % pre_assumedState()
      
      % when there is recursion
      % i.e., noRecursion() == false
      {{_, Func_Delta}, _, Func_Recv_Transition_States, false} ->
          % delta_Info()
-         {lists:reverse(Delta) ++ Func_Delta, -1, Func_Recv_Transition_States, false}
+         {Func_Delta, -1, 
+          add_PreAssumedState(Func_Recv_Transition_States, % transition_States()
+            Pre_assumedState, % pre_assumedState()
+            Last_Pre_assumedState), % pre_assumedState()
+          false}
     end;
 
 
@@ -783,6 +627,15 @@ expressions([{function, Anno, Method_Name, Arity, Clauses, Method_Term}|Xs], Met
 % when we encounter a case expression
 expressions([{'case', _, _, Clauses}|Xs], MethodState_Map, Delta, Last_Transition_State,
   Last_Pre_assumedState, Transition_States) ->
+    Max_State = lists:max(Transition_States),
+    % gets the pre_assumed state for this receive expressiom
+    Pre_assumedState = 
+      getPre_assumedState(Xs == [], % empty_Xs()
+        Last_Pre_assumedState =/= -1, % exist_PreAssumedState()
+        Last_Pre_assumedState, % pre_assumedState()
+        Max_State + 1), % the can be pre_assumedState()
+
+
     % calling the clause/12 to deal with this case expression clauses as a seprately and 
     % get its caa_Info().
     case clause(Clauses, % clauses()
@@ -791,28 +644,35 @@ expressions([{'case', _, _, Clauses}|Xs], MethodState_Map, Delta, Last_Transitio
       MethodState_Map, % methodState_Map()
       -1, % lastClause_max_State() : -1 because this is going to be the very first clause
       -1, % lastClause_Last_Transition_State() : -1 because same reason as above
-      [], % delta()
+      Delta, % delta()
       Last_Transition_State, % parent_Last_Transition_State()
-      Last_Pre_assumedState, % pre_assumedState()
+      Pre_assumedState, % pre_assumedState()
       Transition_States, % transition_States()
-      length(Clauses), % length_Clauses()
-      -1) of % clausesPre_assumedState()
+      length(Clauses)) of % length_Clauses()
 
      % when not all the clauses had recursion
      % i.e., noRecusrion() == true 
      {{_, Case_Delta}, Case_Last_Transition_States, Case_Recv_Transition_States, true} ->
         expressions(Xs, % expressions()
           MethodState_Map, % methodState_Map()
-          lists:reverse(Case_Delta) ++ Delta, % delt()
+          lists:reverse(Case_Delta), % delt()
           Case_Last_Transition_States, % last_Transition_State()
           Last_Pre_assumedState, % pre_assumedState()
-          Case_Recv_Transition_States); % transition_States()
+          % transition_States() : adding the pre-assumed state if necessary
+          add_PreAssumedState(Case_Recv_Transition_States, % transition_States()
+            Pre_assumedState, % pre_assumedState()
+            Last_Pre_assumedState)); % pre_assumedState()
         
      % when all the clauses had recursion
      % i.e., noRecursion() == false
      {{_, Case_Delta}, _, Case_Recv_Transition_States, false} -> 
          % delta_info()
-        {lists:reverse(Delta) ++ Case_Delta, -1, Case_Recv_Transition_States, false}
+        {Case_Delta, -1,
+         % transition_States() : adding the pre-assumed state if necessary
+         add_PreAssumedState(Case_Recv_Transition_States, % transition_States()
+          Pre_assumedState, % pre_assumedState()
+          Last_Pre_assumedState), % pre_assumedState(),
+         false}
 end;      
 
 
@@ -849,7 +709,7 @@ receive_block([{_, _, Recv, _, Body}|Xs], Pre_assumedState, LastRecvClause_Max_S
   MethodState_Map, Delta, Last_Transition_State, N_Clauses, Transition_States) ->
     % adds this receive expression clause delta to the given delta() by calling the expresions/6
     % and passing the body of the receive-clause.
-    {Recv_Delta, _, Recv_Transition_States, NoRecursion} = 
+    {Recv_Delta, Recv_Last_Transition_States, Recv_Transition_States, NoRecursion} = 
         % we are passing LastRecvClause_Max_State+1 in place of last_Transition_State() because 
         % we are already adding the recv transition to the delta() and now its transition state is
         % the last state in the delta().
@@ -864,16 +724,17 @@ receive_block([{_, _, Recv, _, Body}|Xs], Pre_assumedState, LastRecvClause_Max_S
           Pre_assumedState, % pre_assumedState()
           [LastRecvClause_Max_State+1|Transition_States]), % transition_States()
 
+    
+    {Check_Delta, _, Check_Transition_States} = 
+          check_UnlabelRecv(recv,
+            Recv_Delta,
+            Pre_assumedState, 
+            NoRecursion, 
+            Recv_Last_Transition_States,
+            Recv_Transition_States),
+
     % max state in the new delta
-    Recv_Max_State = lists:max(Recv_Transition_States),
-    % changes the last transition state of this receive clause to 
-    % the pre-assumed state.
-    {Pre_assumedState_Delta, Pre_assumedStateTransition_States} = 
-        recv_changeTracesStates(lists:reverse(Recv_Delta), % delta()
-          Pre_assumedState, % pre_assumedState()
-          MethodState_Map, % methodState_Map()
-          Recv_Transition_States, % transition_States()
-          NoRecursion), % noRecursion()
+    Recv_Max_State = lists:max(Check_Transition_States),
 
     % trverse over other receive clauses.
     % we are passing Last_Transition_State in place of last_Transition_State() because we want the
@@ -882,37 +743,10 @@ receive_block([{_, _, Recv, _, Body}|Xs], Pre_assumedState, LastRecvClause_Max_S
         Pre_assumedState, % pre_assumedState()
         Recv_Max_State, % last_receive_max_state()
         MethodState_Map, % methodState_Map()
-        Pre_assumedState_Delta, % delta()
+        Check_Delta, % delta()
         Last_Transition_State, % last_Transition_State()
         noRecursion(NoRecursion, N_Clauses), % length_Clauses()
-        Pre_assumedStateTransition_States). % transition_States()
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
--spec recv_changeTracesStates(delta(), pre_assumedState(), methodState_Map(), 
-        transition_States(), noRecursion()) -> {delta(), transition_States()}.
-    % changes the max state of the receive clause to the pre assumed state
-
-recv_changeTracesStates([{First_State, Label, Last_State}|Xs], Pre_assumedState, MethodState_Map,
- Transition_States, NoRecursion) ->
-    % check if the last-transition state is valid to change to the pre-assumed state i.e., 
-    % it is not state representing recursion. 
-    % no recursion == false covers the case when there was recursion but it is local.
-    % e.g., in file case_of.erl method c1/1
-    case lists:member(Last_State, maps:values(MethodState_Map)) orelse NoRecursion == false of
-        % if the last state is not representing a recursion
-        false -> 
-            % we are deleting the Last_State from the Transition_State because we changed Last_State
-            % to the  Pre_assumedState
-            {[{First_State, Label, Pre_assumedState}|Xs], 
-             lists:delete(Last_State, Transition_States)}; 
-
-        % when there is recursion   
-        _ ->  
-            {[{First_State, Label, Last_State}|Xs], Transition_States}
-end.      
+        Check_Transition_States). % transition_States()
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -984,6 +818,125 @@ noRecursion(false, Length) -> Length-1;
 
 % when there is no recurion
 noRecursion(true, Length) -> Length.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+-spec add_SendTransition(empty_Xs(), exist_PreAssumedState(), last_Transition_State(),
+        pre_assumedState(), max_State(), delta(), label()) -> 
+          {delta(), last_Transition_State()}.
+  % add_SendTransition/7 adds send transition to the delta() with appropriate transition
+  % state and it return a tuple which contains the new delta and the its last transition state.
+
+
+% when there is no expressions() after this send expression and Pre_assumedState is 
+% not equal to 1 that it's already been set by a parent method or a receive or a 
+% case expression.
+% i.e., empty_Xs() == true and exist_PreAssumedState() == true
+add_SendTransition(true, true, Last_Transition_State, Pre_assumedState, _, Delta, Label) ->
+  % first element of the tuple delta() is  getting the send transition added to it, where 
+  % transition state is the pre-assumed state.
+  {addTransition(Delta, % delta()
+     Last_Transition_State, % transition_from()
+     Pre_assumedState-1, % max_State()
+     Label), % label()
+    Pre_assumedState};
+
+
+%%%%% end of clause %%%%%
+
+
+% when the pre-assumed state is not set.
+% i.e, exist_PreAssumedState() == false
+add_SendTransition(_, _, Last_Transition_State, _, Max_State, Delta, Label) ->
+  % first element of the tuple delta() is getting the send transition added to it, where 
+  % transition state is Max_State+1.
+  {addTransition(Delta, % delta()
+    Last_Transition_State, % transition_from()
+    Max_State, % max_State()
+    Label),% label()
+   Max_State+1}.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+-spec getPre_assumedState(empty_Xs(), exist_PreAssumedState(), pre_assumedState(),
+        pre_assumedState()) -> pre_assumedState().
+    % getPre_assumedState/4 tells what pre_assumedState we should use for the current
+    % function, receive or case expression.
+
+
+% when expression() is [] after this current expression and pre_assumedState() is already set,
+% we just return the already set Last_Pre_assumedState
+% i.e., empty_Xs()  and  exist_PreAssumedState() equal to true
+getPre_assumedState(true, true, Last_Pre_assumedState, _) -> Last_Pre_assumedState;
+
+
+%%%%% end of clause %%%%%
+
+
+% when pre_assumedState() not set i.e., -1, we then return Pre_assumedState 
+getPre_assumedState(_, _, _, Pre_assumedState) -> Pre_assumedState.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+-spec add_PreAssumedState(transition_States(), pre_assumedState(), pre_assumedState()) -> 
+        transition_States().
+    % add_PreAssumedState/3 adds the Pre_assumedState to Transition_States, if necessary
+
+% if the pre-assumed state is similar to the already set pre-assumed state (by a parent method 
+% or a appropriate expression) we don't add it to the transition states list because it will
+% get added automatically when we go back to that pre-assumed state parent method 
+% or appropriate expression.
+add_PreAssumedState(Transition_States, Last_Pre_assumedState, Last_Pre_assumedState) ->
+  Transition_States;
+
+
+%%%%% end of clause %%%%%
+
+
+add_PreAssumedState(Transition_States, Pre_assumedState, _) -> [Pre_assumedState|Transition_States].
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec check_UnlabelRecv(atom(), delta(), pre_assumedState(), noRecursion(), last_Transition_State(),
+        transition_States()) -> {delta(), transition_States()}.
+    % check_UnlabelRecv/4 changes the transition state of recv or unlabelled transition to 
+    % pre-assumed state, if they are the last transition of a particular clause
+
+% when the last transition is a recv transiton.
+% we change its transition state to Pre_assumedState
+check_UnlabelRecv(recv, [{Start_State, {recv, Data}, To}|Xs], Pre_assumedState, true, _,
+  Transition_States) ->
+   io:fwrite("Here recv~n"),
+  {[{Start_State, {recv, Data}, Pre_assumedState}|Xs], Pre_assumedState,
+    lists:delete(To, Transition_States)};
+
+
+%%%%% end of clause %%%%%
+
+
+% when the last transition is a unlabelled transiton.
+% we change its transition state to Pre_assumedState
+check_UnlabelRecv(unlabelled, [{Start_State, unlabelled, To}|Xs], Pre_assumedState, true, _,
+  Transition_States) ->
+  io:fwrite("Here unlabelled~n"),
+    {[{Start_State, unlabelled, Pre_assumedState}|Xs], Pre_assumedState,
+     lists:delete(To, Transition_States)};
+
+
+%%%%% end of clause %%%%%
+
+% none of the above that means we don't need to change any transition state
+check_UnlabelRecv(_, Delta, Pre_assumedState, NoRecursion, Last_Transition_State, Transition_States) ->
+  [T|_] = Delta,
+  io:fwrite("~p : Here normal and ~p and transition ~p~n", [NoRecursion, Pre_assumedState, T]),
+  {Delta, Last_Transition_State,Transition_States}.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

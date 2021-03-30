@@ -5,7 +5,7 @@
     % Abstract form of an Erlang form/file.
 
 -type clause() :: [erl_parse:abstract_clause()].
-    %Abstract form of an Erlang clause.
+    % Abstract form of an Erlang clause.
 
 -type expressions() :: [erl_parse:abstract_expr()].
     % Abstract form of an Erlang expression.
@@ -62,7 +62,7 @@
     % receive expression where caa_clauseForm is a
     % function clause.              
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec getMethod(form(), method(), arity(), form(), parents()) ->  error 
                                                                 |   caa_methodForm().
@@ -71,26 +71,47 @@ getMethod([], _, _, _, _) ->
     error;
 % when we found the given method's
 % erl_parse:abstract_form() function declaration.
+
+%%%%% end of clause %%%%%
+
+
 getMethod([{function, L, Method, NumArgu, Body}|_], Method, NumArgu, Form, Parents) ->
     {function, L, Method, NumArgu, getMethod_Clause(Body, Parents, Form), atom_to_list(Method) ++ "->" ++ integer_to_list(NumArgu)}; 
+
+%%%%% end of clause %%%%%
+
+
 getMethod([_|Xs], Method, NumArgu, Form, Parents) ->
     getMethod(Xs, Method, NumArgu, Form, Parents).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 -spec getMethod_Clause(clause(), parents(), form()) -> caa_clauseForm().
 
+
 getMethod_Clause([], _, _) ->
     [];
+
+%%%%% end of clause %%%%%
+
+
 getMethod_Clause([{_, Anno, Aritity, _, Body}|Xs], Parents, Form) ->
     [{clause, Anno, Aritity, [], lists:reverse(getMethod_CallCheck(Body, Parents, Form, []))}| getMethod_Clause(Xs, Parents, Form)].
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 -spec getMethod_CallCheck(expressions(), parents(), form(), caa_clauseBody()) -> caa_clauseBody().
 
 getMethod_CallCheck([], _, _, New_Body) ->
     New_Body;
+
+
+%%%%% end of clause %%%%%
+
 
 % for call expression
 getMethod_CallCheck([{call, Anno1, {Var, Anno2, Call_To}, Arity}|Xs], Parents, Form, New_Body) ->
@@ -105,25 +126,50 @@ getMethod_CallCheck([{call, Anno1, {Var, Anno2, Call_To}, Arity}|Xs], Parents, F
         _       -> getMethod_CallCheck(Xs, Parents, Form, [{call, Anno1, {Var, Anno2, Call_To}, Arity, Call_Method}|New_Body])
 end;
 
+
+%%%%% end of clause %%%%%
+
+
 % for receive expression
 getMethod_CallCheck([{'receive', Anno, Clauses}|Xs], Parents, Form, New_Body) ->
     getMethod_CallCheck(Xs, Parents, Form, [{'receive', Anno, getMethod_ReceiveBlock(Clauses, Parents, Form)}|New_Body]);
+
+
+%%%%% end of clause %%%%%
+
 
 % case expression
 getMethod_CallCheck([{'case', Anno, Of, Clauses}|Xs], Parents, Form, New_Body) ->
     getMethod_CallCheck(Xs, Parents, Form, [{'case', Anno, Of, getMethod_ReceiveBlock(Clauses, Parents, Form)}|New_Body]);
 
-getMethod_CallCheck([X|Xs], Parents, Form, New_Body) ->
-    getMethod_CallCheck(Xs, Parents, Form, [X|New_Body]).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% end of clause %%%%%
+
+
+% expression that we are not focusing on
+getMethod_CallCheck([_|Xs], Parents, Form, New_Body) ->
+    % we are not adding the expression to caa_clauseBody(), which for the current version 
+    % of CAA model does not contribute in transitions
+    getMethod_CallCheck(Xs, % expressions()
+      Parents, % parents()
+      Form, % form()
+      New_Body). % caa_clauseBody()
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 -spec getMethod_ReceiveBlock(clause(), parents(), form()) -> caa_RecvClauseForm().
 
+
 getMethod_ReceiveBlock([], _, _) ->
     [];
+
+%%%%% end of clause %%%%%
+
+
 getMethod_ReceiveBlock([{_, Anno, Recv, _, Body}|Xs], Parents, Form) ->
     [{clause, Anno, Recv, [], lists:reverse(getMethod_CallCheck(Body, Parents, Form, []))}|getMethod_ReceiveBlock(Xs, Parents, Form)].
 
 
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
