@@ -54,5 +54,41 @@ c2(NumMessages) ->
          stop -> ok 
 end.
 
+% c14/3: no need to scroll up
+% cl4(recv,S,Z) ->
+%     receive
+%         {get, P} -> P!S, cl4(send, S,Z);
+%         {put, X} -> cl4(recv, X,Z)
+% end;
+% cl4(send, S,Z) ->
+%     cl4(send, S,Z);
+% cl4(X, S, Z) ->
+%     X!S,
+%     Z!S,
+%     cl4(X, S, Z).
      
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+c3(X) ->
+    case X of
+              0 -> io:fwrite("I'm out"), X!hi;
+              N -> X!N
+end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+c4(X) ->
+    case X of
+              0 -> io:fwrite("I'm out");
+              N -> X!N
+end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+c5(X) ->
+    case X of
+              0 -> io:fwrite("I'm out");
+              N -> io:fwrite("Hello")
+end.

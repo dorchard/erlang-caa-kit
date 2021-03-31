@@ -50,6 +50,8 @@ f3(S, Z) ->
     f1_call(Z).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
 f4(S, Z) ->
     f1_call(Z),
     f2_call(Z, S).
@@ -57,6 +59,13 @@ f4(S, Z) ->
 f2_call(S, Z) -> 
     f1_call(Z),
     f2_call(S, Z).
+
+%  this is f1_call/1 , no need to scroll up:
+% f1_call(Z) ->
+%     receive
+%         {get, P} -> P!Z;
+%         {"hi", P} -> P!"hello"
+%     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 f5(S, Z) -> 
@@ -66,6 +75,13 @@ f5(S, Z) ->
 f3_call(S, Z) ->
     f1_call(Z),
     f5(S, Z).
+
+%  this is f1_call/1 , no need to scroll up:
+% f1_call(Z) ->
+%     receive
+%         {get, P} -> P!Z;
+%         {"hi", P} -> P!"hello"
+%     end.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 f6(S, Z) ->
@@ -83,6 +99,13 @@ c(send, S,Z) ->
 c(X, S, Z) ->
     X!S,
     Z!S.
+
+%  this is f1_call/1 , no need to scroll up:
+% f1_call(Z) ->
+%     receive
+%         {get, P} -> P!Z;
+%         {"hi", P} -> P!"hello"
+%     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 
@@ -102,6 +125,13 @@ c1(X, S, Z) ->
     X!S,
     Z!S, c1(send, S,Z).
 
+%  this is f1_call/1 , no need to scroll up:
+% f1_call(Z) ->
+%     receive
+%         {get, P} -> P!Z;
+%         {"hi", P} -> P!"hello"
+%     end.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 f8(S, Z) ->
@@ -120,6 +150,14 @@ c2(X, S, Z) ->
     X!S,
     Z!S, c2(send, S,Z).
 
+%  this is f1_call/1 , no need to scroll up:
+% f1_call(Z) ->
+%     receive
+%         {get, P} -> P!Z;
+%         {"hi", P} -> P!"hello"
+%     end.
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 f9(S, Z) ->
@@ -137,6 +175,13 @@ c3(send, S,Z) ->
 c3(X, S, Z) ->
     X!S,
     Z!S.
+
+%  this is f1_call/1 , no need to scroll up:
+% f1_call(Z) ->
+%     receive
+%         {get, P} -> P!Z;
+%         {"hi", P} -> P!"hello"
+%     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -157,6 +202,13 @@ c4(X, S, Z) ->
     X!S,
     Z!S,
     c4(X, S, Z).
+
+%  this is f1_call/1 , no need to scroll up:
+% f1_call(Z) ->
+%     receive
+%         {get, P} -> P!Z;
+%         {"hi", P} -> P!"hello"
+%     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

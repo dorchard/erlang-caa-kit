@@ -254,9 +254,33 @@ recv14(S, Z) ->
                         y  -> C!y
                     end
     end,
-    %  recv9(S, Z), % testing it works
+     recv14(S, Z),
     S!"Hi",
     S!"Bye",
     recv14(S, Z).
+
+%%%%%%%%%%%%%%%%%%%%%
+
+recv15(S, Z) ->
+    receive 
+        {got, X} -> io:fwrite("Hello~n");
+        {put, X} -> S!X
+end.
+
+%%%%%%%%%%%%%%%%%%%%%
+
+recv16(S, Z) ->
+    receive 
+        {got, X} -> io:fwrite("Hello~n");
+        {put, X} -> io:fwrite("Hi~n")
+end.
+
+%%%%%%%%%%%%%%%%%%%%%
+
+recv17(S, Z) ->
+    receive 
+        {got, X} -> io:fwrite("Hello~n"), S!X;
+        {put, X} -> io:fwrite("Hi~n")
+end.
 
 %%%%%%%%%%%%%%%%%%%%%
