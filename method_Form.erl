@@ -146,10 +146,17 @@ getMethod_CallCheck([{'case', Anno, Of, Clauses}|Xs], Parents, Form, New_Body) -
 
 %%%%% end of clause %%%%%
 
+getMethod_CallCheck([{op,Ann,'!',ProcId,PayLoad}|Xs], Parents, Form, New_Body) ->
+    % send expression
+    getMethod_CallCheck(Xs, % expressions()
+      Parents, % parents()
+      Form, % form()
+      [{op,Ann,'!',ProcId,PayLoad} | New_Body]);
+
 
 % expression that we are not focusing on
-getMethod_CallCheck([_|Xs], Parents, Form, New_Body) ->
-    % we are not adding the expression to caa_clauseBody(), which for the current version 
+getMethod_CallCheck([_X|Xs], Parents, Form, New_Body) ->
+    % we are not adding the expression to caa_clauseBody(), which for the current version
     % of CAA model does not contribute in transitions
     getMethod_CallCheck(Xs, % expressions()
       Parents, % parents()
@@ -170,7 +177,9 @@ getMethod_ReceiveBlock([], _, _) ->
 
 
 getMethod_ReceiveBlock([{_, Anno, Recv, _, Body}|Xs], Parents, Form) ->
-    [{clause, Anno, Recv, [], lists:reverse(getMethod_CallCheck(Body, Parents, Form, []))}|getMethod_ReceiveBlock(Xs, Parents, Form)].
+    [{clause, Anno, Recv, [],
+      lists:reverse(getMethod_CallCheck(Body, Parents, Form, []))}
+    | getMethod_ReceiveBlock(Xs, Parents, Form)].
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
