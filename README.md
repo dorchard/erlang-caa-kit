@@ -36,7 +36,8 @@ git clone https://github.com/efcasado/forms
 cp forms/src/forms.erl .
 ```
 
-This will bring the module into the same source tree.
+This will bring the `forms` module into the same source tree for using by the code generation module.
+
 
 ## Using this tool
 
