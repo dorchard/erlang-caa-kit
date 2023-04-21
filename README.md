@@ -28,6 +28,14 @@ If you would like to generate visualisations then GraphViz is recommended,
 although it is not necessary to generate models and generate code from
 models.
 
+If you would like to generate code, then you also need the [forms](https://github.com/efcasado/forms) module. The easiest approcach is to clone the repository and copy the `forms.erl` module here, e.g.
+in this directory:
+
+```
+git clone https://github.com/efcasado/forms
+cp forms/src/forms.erl .
+``
+
 ## Using erlang-caa-kit
 
 At the moment, `erlang-caa-kit` is driven from the `eshell` (Erlang Shell) via the command line, with two main components exemplified below.
@@ -91,9 +99,14 @@ function's CAA model:
 
 Continuing from the previous example, we bound the result of generating the model
 to `Model`. Now we can import the code generation module and convert the model
-back to Erlang code:
+back to Erlang code.
+
+Code generation requires the [forms](https://github.com/efcasado/forms) module
+(see the instructions on requirements above).
+
 
 ```
+c(forms).
 c(generate_code).
 generate_code:main([Model]).
 ```
