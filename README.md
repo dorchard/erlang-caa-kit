@@ -3,7 +3,7 @@
 ## Overview
 
 This project contains a number of prototype tools for working with the Communicating Actor Automata model of Erlang programs as described
-in the paper [Communicating Actor Automata -- Modelling Erlang Processes as Communicating Machines](https://arxiv.org/abs/2304.06395) by Orchard, Munteanu,
+in the paper [Communicating Actor Automata -- Modelling Erlang Processes as Communicating Machines](https://arxiv.org/abs/2304.06395) at PLACES 2023 by Orchard, Munteanu,
 and Torrens.
 
 The aim of this work is to provide a starting point for future tools
