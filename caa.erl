@@ -26,39 +26,11 @@
     % parsing the file of given file() to form() or
     % while finding the given func() inside the form().
 
--type caa() :: {start_State(), delta()}.
-    % Communicating Actor Automata specifies
-    % a tuple representation of Actor-based
-    % model erlang code. The tuple contains
-    % a staring state and it's delta.
-
--type start_State() :: integer().
-    % start_State() represents the initial
-    % state of the caa().
-
--type delta() :: [transition()].
-    % delat() contains list of transitions
-    % which represents the transition 
+-type delta() :: [type:transition()].
+    % delta() contains list of transitions
+    % which represents the transition
     % relations.
 
--type transition() :: {state(), label(), state()}.
-    % transition represents a tuple containing
-    % 3 elements, where the 1st element represents 
-    % the start state() of the transtion, the 2nd 
-    % element represents the label() and the 3rd 
-    % element represents the next state after the
-    % transition.
-
--type state() ::    integer()
-               |    string().
-    % state() represents the state which we at
-    % during a transtion.
-
--type label() ::    {send, erl_parse:abstract_expr(), erl_parse:abstract_expr()}
-                |   {recv, erl_parse:abstract_expr()}
-                |   unlabelled.
-    % label() specifies the communication/label
-    % over which the transition is happening.
 
 -type form() :: erl_parse:abstract_form().
     % form() is the erl_parse:abstract_form() 
@@ -74,22 +46,22 @@
     %
     % It is used for dectecting recursion.
 
--type last_Transition_State() :: state().
+-type last_Transition_State() :: type:state().
     % last_Transition_State() represents the transtion
     % state in the last taransition of delta().
 
--type pre_assumedState() :: state().
+-type pre_assumedState() :: type:state().
     % pre_assumedState() represents the pre_assumed next state after a
     % receive or case or many clauses.
 
--type transition_States() :: [state()].
+-type transition_States() :: [type:state()].
     % transition_States() is list containing all the transition states
     % happened in the delta() so far.
 
--type max_StateMethod() :: state().
+-type max_StateMethod() :: type:state().
     % max_StateMethod() represents the max transitino state in the delta().
 
--type caa_Info() :: {caa(), last_Transition_State(), max_StateMethod(), transition_States(),
+-type caa_Info() :: {type:caa(), last_Transition_State(), max_StateMethod(), transition_States(),
                      noRecursion()}.
     % caa_data() is a tuple containing information about the caa().
 
@@ -112,11 +84,11 @@
     % application is in distinguishing the first clause from the rest
     % when there are multiple clauses inside a method
 
--type lastClause_max_State() :: state().
+-type lastClause_max_State() :: type:state().
    % lastClause_max_State() tells the max transition state of the last
    % clause when there are multiple clauses.
 
--type parent_Last_Transition_State() :: state().
+-type parent_Last_Transition_State() :: type:state().
    % similar to last_Transition_State(), but parent_Last_Transition_State() tells
    % the last transition state of the parent method as this method (child-method)
    % can be a call from inside of another method (parent-method)
@@ -133,42 +105,42 @@
 
 -type receive_clauses() :: method_Form:caa_clauseForm().
 
--type last_receive_max_state() :: state().
+-type last_receive_max_state() :: type:state().
     % last_receive_max_state() represent the max transition state of the last receive clause
 
--type transition_from() :: state().
+-type transition_from() :: type:state().
     % transition_from() represents start state for the given label().
 
--type max_State() :: state().
-    % represent the max state in the delta(). It's mainly used for computing the next transition 
+-type max_State() :: type:state().
+    % represent the max state in the delta(). It's mainly used for computing the next transition
     % state.
 
--type recursionToMethod_State() :: state().
+-type recursionToMethod_State() :: type:state().
     % recursionToMethod_State() reprent the starting state of the recursive method.
 
 -type empty_Xs() :: boolean().
     % empty_Xs() tells if expressions() is empty or not after the current send expression.
-    % It is used detecting what should be the transition state or pre-assumed state 
+    % It is used detecting what should be the transition state or pre-assumed state
 
 
 -type exist_PreAssumedState() :: boolean().
     % exist_PreAssumedState() tells if the is pre-assumed state set or not.
-    % i.e. -1 means it's not set and any arbitrary number > 0 means it has been set 
+    % i.e. -1 means it's not set and any arbitrary number > 0 means it has been set
     % by a parent method or a receive or clause expression.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
--spec main(file(), func(), location()) -> error() | caa().
+-spec main(file(), func(), location()) -> error() | type:caa().
     % main/3 takes file(), function() and location()
-    % as inputs and either return an error if the given 
+    % as inputs and either return an error if the given
     % file() or function() do not exist or return a CAA
-    % model, also creates automata.txt, graph.dot and 
+    % model, also creates automata.txt, graph.dot and
     % CAA.pdf in the given location() and opens the CAA.pdf.
     %
-    % NOTE: automata.txt contains the CAA model, graph.dot 
+    % NOTE: automata.txt contains the CAA model, graph.dot
     % contains the CAA model in dot (graphviz) representation
-    % and CAA.pdf represents the visual graphical representation 
+    % and CAA.pdf represents the visual graphical representation
     % of the CAA model.
 
 
