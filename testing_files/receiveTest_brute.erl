@@ -12,7 +12,7 @@ test() ->
         {3,{send,{var,193,'C'},{string,193,"hi"}},2},
         {1,{recv,[{tuple,194,[{atom,194,bye},{var,194,'C'}]}]},5},
         {5,{send,{var,194,'C'},{string,194,"Gn"}},2}]},
-    case Recv ==  eCFSM:main("example.erl", "recv", 2) of
+    case Recv ==  generate_model:main("example.erl", "recv", 2) of
       true -> print(0, true);
       _ -> print(0, false)
     end,
@@ -23,7 +23,7 @@ test() ->
          {3,{send,{var,200,'C'},{string,200,"hi"}},0},
          {1,{recv,[{tuple,201,[{atom,201,bye},{var,201,'C'}]}]},5},
          {5,{send,{var,201,'C'},{string,201,"Gn"}},0}]},
-    case Recv1 ==  eCFSM:main("example.erl", "recv1", 2) of
+    case Recv1 ==  generate_model:main("example.erl", "recv1", 2) of
       true -> print(1, true);
       _ -> print(1, false)
     end,
@@ -35,7 +35,7 @@ test() ->
          {1,{recv,[{tuple,209,[{atom,209,bye},{var,209,'C'}]}]},5},
          {5,{send,{var,209,'C'},{string,209,"Gn"}},2},
          {2,{send,{var,211,'S'},{string,211,"Hi"}},0}]},
-    case Recv2 ==  eCFSM:main("example.erl", "recv2", 2) of
+    case Recv2 ==  generate_model:main("example.erl", "recv2", 2) of
       true -> print(2, true);
       _ -> print(2, false)
     end,
@@ -47,7 +47,7 @@ test() ->
          {1,{recv,[{tuple,218,[{atom,218,bye},{var,218,'C'}]}]},5},
          {5,{send,{var,218,'C'},{string,218,"Gn"}},0},
          {2,{send,{var,221,'S'},{string,221,"Hi"}},0}]},
-    case Recv3 ==  eCFSM:main("example.erl", "recv3", 2) of
+    case Recv3 ==  generate_model:main("example.erl", "recv3", 2) of
       true -> print(3, true);
       _ -> print(3, false)
     end,
@@ -60,7 +60,7 @@ test() ->
          {5,{send,{var,228,'C'},{string,228,"Gn"}},0},
          {2,{send,{var,231,'S'},{string,231,"Hi"}},6},
          {6,{send,{var,232,'S'},{string,232,"Bye"}},0}]},
-    case Recv4 ==  eCFSM:main("example.erl", "recv4", 2) of
+    case Recv4 ==  generate_model:main("example.erl", "recv4", 2) of
       true -> print(4, true);
       _ -> print(4, false)
     end,
@@ -73,7 +73,7 @@ test() ->
          {5,{send,{var,239,'C'},{string,239,"Gn"}},2},
          {2,{send,{var,241,'S'},{string,241,"Hi"}},7},
          {7,{send,{var,242,'S'},{string,242,"Bye"}},0}]},
-    case Recv5 ==  eCFSM:main("example.erl", "recv5", 2) of
+    case Recv5 ==  generate_model:main("example.erl", "recv5", 2) of
       true -> print(5, true);
       _ -> print(5, false)
     end,
@@ -95,7 +95,7 @@ test() ->
          {16,{send,{var,257,'C'},{atom,257,y}},2},
          {2,{send,{var,260,'S'},{string,260,"Hi"}},18},
          {18,{send,{var,261,'S'},{string,261,"Bye"}},0}]},
-    case Recv6 ==  eCFSM:main("example.erl", "recv6", 2) of
+    case Recv6 ==  generate_model:main("example.erl", "recv6", 2) of
       true -> print(6, true);
       _ -> print(6, false)
     end,
@@ -115,7 +115,7 @@ test() ->
          {14,{send,{var,274,'C'},{atom,274,y}},2},
          {2,{send,{var,277,'S'},{string,277,"Hi"}},16},
          {16,{send,{var,278,'S'},{string,278,"Bye"}},0}]},
-    case Recv7 ==  eCFSM:main("example.erl", "recv7", 2) of
+    case Recv7 ==  generate_model:main("example.erl", "recv7", 2) of
       true -> print(7, true);
       _ -> print(7, false)
     end,
@@ -132,7 +132,7 @@ test() ->
          {10,{send,{var,289,'S'},{atom,289,y}},7},
          {7,{send,{var,291,'S'},{string,291,"Hi"}},12},
          {12,{send,{var,292,'S'},{string,292,"Bye"}},0}]},
-    case Recv8 ==  eCFSM:main("example.erl", "recv8", 2) of
+    case Recv8 ==  generate_model:main("example.erl", "recv8", 2) of
       true -> print(8, true);
       _ -> print(8, false)
     end,
@@ -160,7 +160,7 @@ test() ->
          {24,{send,{var,313,'C'},{atom,313,y}},2},
          {2,{send,{var,317,'S'},{string,317,"Hi"}},26},
          {26,{send,{var,318,'S'},{string,318,"Bye"}},0}]},
-    case Recv9 ==  eCFSM:main("example.erl", "recv9", 2) of
+    case Recv9 ==  generate_model:main("example.erl", "recv9", 2) of
       true -> print(9, true);
       _ -> print(9, false)
 end,
@@ -171,7 +171,7 @@ end,
      {3,{send,{var,324,'C'},{string,324,"hi"}},0},
      {1,{recv,[{tuple,326,[{atom,326,bye},{var,326,'C'}]}]},4},
      {4,{send,{var,326,'C'},{string,326,"Gn"}},0}]},
-     case Recv10 == eCFSM:main("example.erl", "recv10", 2) of
+     case Recv10 == generate_model:main("example.erl", "recv10", 2) of
        true -> print(10, true);
        _    -> print(10, false)
   end,
@@ -192,7 +192,7 @@ end,
      {13,{send,{var,347,'C'},{atom,347,y}},2},
      {2,{send,{var,350,'S'},{string,350,"Hi"}},15},
      {15,{send,{var,351,'S'},{string,351,"Bye"}},0}]},
-    case Recv11 == eCFSM:main("example.erl", "recv11", 2) of
+    case Recv11 == generate_model:main("example.erl", "recv11", 2) of
       true -> print(11, true);
       false -> print(11, false)
     end,
@@ -211,7 +211,7 @@ end,
      {11,{send,{var,367,'C'},{atom,367,x}},0},
      {9,{recv,[{atom,369,y}]},12},
      {12,{send,{var,369,'C'},{atom,369,y}},0}]},
-    case Recv12 == eCFSM:main("example.erl", "recv12", 2) of
+    case Recv12 == generate_model:main("example.erl", "recv12", 2) of
       true -> print(12, true);
       false -> print(12, false)
 end.
