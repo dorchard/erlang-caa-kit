@@ -131,7 +131,7 @@ createGraph([{From, Label, To}|Xs], Graph, From_s, To_s) ->
 prettyPrint({send, P_id, Data}) ->
     lists:flatten(io_lib:format("~s!~s", [erl_prettypr:format(P_id), erl_prettypr:format(Data)]));
 % for receive transition
-prettyPrint({recv, [Label]}) ->
+prettyPrint({recv, Label}) ->
     lists:flatten(io_lib:format("?~s", [erl_prettypr:format(Label)]));
 % for unlabelled
 prettyPrint(X) ->

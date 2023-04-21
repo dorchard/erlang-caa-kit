@@ -653,10 +653,16 @@ receive_block([], _, _, _, Delta, _, N_Clauses, Transition_States) ->
 %%%%% end of clause %%%%%
 
 
-receive_block([{_, _, Recv, _, Body}|Xs], Pre_assumedState, LastRecvClause_Max_State,
+receive_block([{_, _, Recvs, _, Body}|Xs], Pre_assumedState, LastRecvClause_Max_State,
   MethodState_Map, Delta, Last_Transition_State, N_Clauses, Transition_States) ->
     % adds this receive expression clause delta to the given delta() by calling the expresions/6
     % and passing the body of the receive-clause.
+
+    % unpack a singleton
+    RecvLabel = case Recvs of
+      [Recv|_] -> Recv;
+      Recvs -> Recvs
+    end,
     {Recv_Delta, Recv_Last_Transition_States, Recv_Transition_States, NoRecursion} =
         % we are passing LastRecvClause_Max_State+1 in place of last_Transition_State() because
         % we are already adding the recv transition to the delta() and now its transition state is
@@ -667,7 +673,7 @@ receive_block([{_, _, Recv, _, Body}|Xs], Pre_assumedState, LastRecvClause_Max_S
           addTransition(Delta, % delta()
             Last_Transition_State, % transition_from()
             LastRecvClause_Max_State, % max_State()
-            {recv, Recv}), % label
+            {recv, RecvLabel}), % label
           LastRecvClause_Max_State+1, % last_Transition_State()
           Pre_assumedState, % pre_assumedState()
           [LastRecvClause_Max_State+1|Transition_States]), % transition_States()
