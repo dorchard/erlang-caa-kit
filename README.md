@@ -32,7 +32,8 @@ models.
 
 At the moment, `erlang-caa-kit` is driven from the `eshell` (Erlang Shell) via the command line, with two main components exemplified below.
 
-### Model generation and visualisation
+### Model generation and visualisation
+
 
 Start in the Erlang shell `erl`, then compile the relevant modules:
 
@@ -63,7 +64,7 @@ end.
 We can generate a model from this code by running:
 
 ```
-generate_model:main("testing_files/examples.erl", "e/1", "example").
+Model = generate_model:main("testing_files/examples.erl", "e/1", "example").
 ```
 
 This performs static analysis of the following code
@@ -86,13 +87,56 @@ function's CAA model:
 
 ![Example CAA](exampleCAA.png)
 
-
 ### Code generation
 
+Continuing from the previous example, we bound the result of generating the model
+to `Model`. Now we can import the code generation module and convert the model
+back to Erlang code:
+
+```
+c(generate_code).
+generate_code:main([Model]).
+```
+
+which outputs:
+
+```
+-export([f0/0]).
+f2(P, S) ->
+    P ! S,
+    f0(P, S),
+    ok.
+f0(P, S) ->
+    receive
+        {get, P} -> f2(P, S);
+        {put, X} -> f0(P, S)
+    end,
+    ok.
+
+[]
+```
+
+We can see how the code generator has split this into multiple functions, but the code is extensionally equivalent to original function `e` (since the original only involve sending and receiving anyway).
+
+## Testing
+
+Tests for model generation can be run as follows:
+
+```
+c(type).
+c(method_Form).
+c(generate_visualisation).
+c(generate_model).
+c(test).
+test:test().
+```
+
+It is known that many of these fail at the moment. This repo is still work in progress
+and there was some bitrot from the original project that produced this work.
 
 ## Help or Discussion
 
-If you would like to discuss, please contact Dominic (d DOT a DOR orchard AT kent DOT ac DOT uk).
+If you would like to discuss, please contact Dominic (d DOT a DOR orchard AT kent DOT ac DOT uk). Otherwise, please raise an issue here.
 
 ## Authors and Acknowledgement
 
