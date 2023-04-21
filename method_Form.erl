@@ -11,17 +11,17 @@
     % Abstract form of an Erlang expression.
 
 -type method() :: atom().
-    % Method name 
+    % Method name
 
 
 -type parents() :: [methodTerm()].
     % list containing methodTerm of current method
     % and of parent methods (if any exist).
     % By a parent method we mean:
-    % "lets at the starting we were generating the caa_methodForm 
+    % "lets at the starting we were generating the caa_methodForm
     %  of method 'f()' and somewhere inside 'f()' it calls
     %  method 'a()', then when we are genetrating the caa_methodForm
-    %  for a() (in nested sense of 'f()') then a()'s parent method 
+    %  for a() (in nested sense of 'f()') then a()'s parent method
     %  would be f() and it's parents() -> [method term of a(),  method term of f()]"
     % And it's because it will help in detecting recursion (line 99).
 
@@ -31,7 +31,7 @@
     % are of type string().
 
 -type caa_methodForm() :: caa_methodForm.
-    % The caa_methodForm is very similar to 
+    % The caa_methodForm is very similar to
     % form() function declaration, it just
     % have few tweaks:
     % 1) caa_methodForm clauses are of type
@@ -48,23 +48,23 @@
 
 -type caa_clauseBody() ::   []
                         |   [caa_clauseBody].
-    % caa_clauseBody is a list which can contains 
-    % 'erl_parse:abstract_expr()' and 
+    % caa_clauseBody is a list which can contains
+    % 'erl_parse:abstract_expr()' and
     % 'form() function declaration (of method*)
-    % instead of a 
+    % instead of a
     % "call" erl_parse:abstract_expr() expression
     % when a new method* is getting called'
 
 -type caa_RecvClauseForm() ::   []
                             |   [caa_RecvClauseForm].
     % caa_RecvClauseForm is similar to caa_clauseForm
-    % but caa_RecvClauseForm is is case clause of a 
+    % but caa_RecvClauseForm is is case clause of a
     % receive expression where caa_clauseForm is a
-    % function clause.              
+    % function clause.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec getMethod(form(), method(), arity(), form(), parents()) ->  error 
+-spec getMethod(form(), method(), arity(), form(), parents()) ->  error
                                                                 |   caa_methodForm().
 
 getMethod([], _, _, _, _) ->
@@ -76,7 +76,7 @@ getMethod([], _, _, _, _) ->
 
 
 getMethod([{function, L, Method, NumArgu, Body}|_], Method, NumArgu, Form, Parents) ->
-    {function, L, Method, NumArgu, getMethod_Clause(Body, Parents, Form), atom_to_list(Method) ++ "->" ++ integer_to_list(NumArgu)}; 
+    {function, L, Method, NumArgu, getMethod_Clause(Body, Parents, Form), atom_to_list(Method) ++ "->" ++ integer_to_list(NumArgu)};
 
 %%%%% end of clause %%%%%
 
@@ -117,12 +117,12 @@ getMethod_CallCheck([], _, _, New_Body) ->
 getMethod_CallCheck([{call, Anno1, {Var, Anno2, Call_To}, Arity}|Xs], Parents, Form, New_Body) ->
     Call_Method = atom_to_list(Call_To) ++ "->" ++ integer_to_list(length(Arity)),
     case lists:member(Call_Method, Parents) of
-        % if it's not a recursive call (or not a call to 
+        % if it's not a recursive call (or not a call to
         % one of the parent's method) then
-        % add the form() function declaration of this new 
+        % add the form() function declaration of this new
         % method instead of that call expression to New_Body
         false   -> getMethod_CallCheck(Xs, Parents, Form, [getMethod(Form, Call_To, length(Arity), Form, [Call_Method|Parents])|New_Body]);
-        % otherwise just add the call expression to New_Body 
+        % otherwise just add the call expression to New_Body
         _       -> getMethod_CallCheck(Xs, Parents, Form, [{call, Anno1, {Var, Anno2, Call_To}, Arity, Call_Method}|New_Body])
 end;
 
@@ -132,7 +132,8 @@ end;
 
 % for receive expression
 getMethod_CallCheck([{'receive', Anno, Clauses}|Xs], Parents, Form, New_Body) ->
-    getMethod_CallCheck(Xs, Parents, Form, [{'receive', Anno, getMethod_ReceiveBlock(Clauses, Parents, Form)}|New_Body]);
+    getMethod_CallCheck(Xs, Parents, Form,
+       [{'receive', Anno, getMethod_ReceiveBlock(Clauses, Parents, Form)}|New_Body]);
 
 
 %%%%% end of clause %%%%%

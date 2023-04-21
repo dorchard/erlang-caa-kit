@@ -1,4 +1,4 @@
--module(caa).
+-module(generate_model).
 -export([main/3]).
 
 -type func() :: string().
@@ -177,7 +177,7 @@ main(Filename, Function, Location) ->
           Automata = lists:flatten(io_lib:format("~sautomata.txt", [Location])),
           file:write_file(Automata, lists:flatten(io_lib:format("~p", [CAA]))),
           % creates the visual representation of the CAA model
-          visualisation:graph(CAA, % caa()
+          generate_visualisation:graph(CAA, % caa()
                          Location), % location()
            % standard ouputs the CAA model
           CAA

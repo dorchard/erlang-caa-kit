@@ -1,5 +1,5 @@
--module(caaToAST).
--compile(export_all).
+-module(generate_code).
+-export([main/1]).
 
 %%TODO:
 %% 1) Export first (Done)
