@@ -34,7 +34,7 @@ in this directory:
 ```
 git clone https://github.com/efcasado/forms
 cp forms/src/forms.erl .
-``
+```
 
 ## Using erlang-caa-kit
 
