@@ -6,25 +6,7 @@
 %% 2) Add leaf nodes (Done)
 %% 3) Parameters!
 
-% Specifies a single transition step (of the delta function)
--type transition() :: {integer(), action(), integer()}.
-
-% Representing communication actions
--type action() ::
-
-   % represents pid!expr
-   {send, erl_parse:abstract_expr(), erl_parse:abstract_expr()}
-
-  % represents ?pat
-  | {recv, erl_parse:abstract_expr()}
-
-  % no communication, used to represent branching
-  | unlabelled.
-
-% Communicating Actor Automata comprises a start state and a list (set) of transitions
--type caa() :: {integer(), [transition()]}.
-
--spec main([caa()]) -> [erl_parse:abstract_clause()].
+-spec main([type:caa()]) -> [erl_parse:abstract_clause()].
 
 %% Program entry point
 %% @param a list of CAAs
@@ -139,7 +121,7 @@ addCommas([P | Ps]) -> toString(P) ++ "," ++ addCommas(Ps).
 %% @return a string of all the actions converted to Erlang instructions.
 actionsToString([],_) -> "";
 actionsToString([{{send,P,S} , End} | _],Transitions) -> toString(P) ++ " ! " ++ toString(S) ++ ", f" ++ integer_to_list(End) ++ "(" ++ paramsToString(getAllParams(End, getFuncsAndActions(Transitions, []), Transitions, Transitions)) ++ "), ";
-actionsToString(Receives,Transitions) -> 
+actionsToString(Receives,Transitions) ->
   "receive " ++ receiveToString(Receives,Transitions) ++ "end,".
 
 %% Transforms receive actions to string
