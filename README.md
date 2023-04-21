@@ -38,12 +38,11 @@ cp forms/src/forms.erl .
 
 This will bring the module into the same source tree.
 
-## Using Erlang CAA kit
+## Using this tool
 
 At the moment, `erlang-caa-kit` is driven from the `eshell` (Erlang Shell) via the command line, with two main components exemplified below.
 
 ### Model generation and visualisation
-
 
 Start in the Erlang shell `erl`, then compile the relevant modules:
 
