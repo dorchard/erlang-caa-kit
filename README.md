@@ -71,14 +71,13 @@ e(S) ->
 end.
 ```
 
-We can generate a model from this code by running:
+We can generate a model by static analysis of this code by running:
 
 ```
 Model = generate_model:main("testing_files/examples.erl", "e/1", "example").
 ```
 
-This performs static analysis of the following code
-outputting the Erlang representation of the CAA model:
+which outputs the Erlang representation of the CAA model:
 
 ```
 {0,
